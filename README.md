@@ -1,1 +1,1 @@
-# imagineSentences
+# ImagineSentences
