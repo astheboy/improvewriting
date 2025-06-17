@@ -224,8 +224,7 @@
             measurementId: "G-EQVSNH407N"
         };
         const appId = 'my-classroom-2025-final';
-        const TEACHER_PASSWORD = 'pw3606551';
-        const UNSPLASH_ACCESS_KEY = 'AZqQQkQi8DLMTQKz025pHodHbF9D00u0CkYff-mPGJI';
+
 
         // DOM Elements
         const authorNameInput = document.getElementById('author-name-input'),
@@ -268,20 +267,47 @@
 
         function closePasswordModal() { passwordModal.classList.add('hidden'); }
 
-        function checkPassword() {
-            if (passwordInput.value === TEACHER_PASSWORD) {
-                isTeacher = true;
-                teacherControls.classList.remove('hidden');
-                teacherModeBtn.classList.add('hidden');
-                closePasswordModal();
-                showToast("교사 모드가 활성화되었습니다.");
-            } else {
+        async function checkPassword() {
+            const enteredPassword = passwordInput.value;
+            if (!enteredPassword) {
+                passwordError.textContent = '비밀번호를 입력하세요.';
+                passwordError.classList.remove('hidden');
+                return;
+            }
+
+            try {
+                // 서버리스 함수에 비밀번호를 보내고 결과를 받음
+                const response = await fetch('/.netlify/functions/verifyPassword', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ password: enteredPassword }),
+                });
+
+                const result = await response.json();
+
+                if (response.ok && result.success) {
+                    // 비밀번호가 맞을 경우
+                    isTeacher = true;
+                    teacherControls.classList.remove('hidden');
+                    teacherModeBtn.classList.add('hidden');
+                    closePasswordModal();
+                    showToast("교사 모드가 활성화되었습니다.");
+                } else {
+                    // 비밀번호가 틀릴 경우
+                    passwordError.textContent = '비밀번호가 틀렸습니다.';
+                    passwordError.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error('Password verification error:', error);
+                passwordError.textContent = '확인 중 오류가 발생했습니다.';
                 passwordError.classList.remove('hidden');
             }
         }
 
         async function fetchRandomImage(query) {
-            const url = `https://api.unsplash.com/photos/random?query=${query}&orientation=landscape&content_filter=low&client_id=${UNSPLASH_ACCESS_KEY}`;
+            const url = `/.netlify/functions/fetchImage?query=${query}`;
             try {
                 const response = await fetch(url);
                 if (!response.ok) throw new Error(`Unsplash API error: ${response.statusText}`);
@@ -337,8 +363,8 @@
                 const prompt = `You are a creative writing assistant for Korean elementary school students. Based on two themes, "${alt1 || 'a beautiful landscape'}" and "${alt2 || 'an interesting object'}", please perform the following two tasks and provide the response in a single, valid JSON object. Do not include any text outside the JSON object. 1. "exampleSentence": Write one creative, fun, and easy-to-understand example sentence in Korean that connects the two themes. 2. "keywords": Suggest 5 helpful keywords in Korean for each theme. The result should be an object with two keys, "theme1" and "theme2", each containing an array of 5 strings.`;
                 const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
                 const apiKey = firebaseConfig.apiKey;
-                const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`;
-                const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+
+                const response = await fetch('/.netlify/functions/getAiInspiration', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                 if (!response.ok) throw new Error(`Gemini API error: ${response.statusText}`);
                 const result = await response.json();
                 if (result.candidates && result.candidates.length > 0) {
