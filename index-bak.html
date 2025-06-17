@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="ko">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI 문장 만들기 (수업용)</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts for better typography -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        body {
+            font-family: 'Noto Sans KR', sans-serif;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        .keyword-tag {
+            background-color: #e0e7ff;
+            color: #4f46e5;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+            cursor: pointer;
+        }
+
+        .keyword-tag:hover {
+            background-color: #c7d2fe;
+            transform: translateY(-2px);
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 12px 24px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+        }
+
+        .toast.show {
+            opacity: 1;
+        }
+
+        .like-btn {
+            background-color: #f3f4f6;
+            color: #6b7280;
+            padding: 4px 10px;
+            border-radius: 9999px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: all 0.2s ease-in-out;
+            border: 1px solid #e5e7eb;
+        }
+
+        .like-btn:hover {
+            background-color: #fee2e2;
+            color: #ef4444;
+            border-color: #fecaca;
+        }
+
+        .like-btn.liked {
+            background-color: #fecaca;
+            color: #ef4444;
+            border-color: #ef4444;
+        }
+
+        /* ✨ 1.4: 대기 화면 스피너 스타일 */
+        .spinner {
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: #09f;
+            animation: spin 1s ease infinite;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+    </style>
+    <link rel="icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✏️</text></svg>">
+</head>
+
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
+    <div id="waiting-overlay" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
+        <h1 class="text-4xl font-bold text-gray-800">선생님을 기다리고 있어요...</h1>
+        <p class="text-lg text-gray-600 mt-4">수업이 곧 시작됩니다!</p>
+        <div class="spinner mt-8"></div>
+    </div>
+
+    <div id="export-content" class="w-full max-w-5xl bg-white rounded-2xl shadow-xl p-6 md:p-8 space-y-6 relative">
+
+        <div class="absolute top-4 right-4">
+            <button id="teacher-mode-btn"
+                class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-bold py-2 px-3 rounded-lg transition-colors">
+                교사 모드
+            </button>
+        </div>
+
+        <header class="text-center pt-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">AI 문장 만들기</h1>
+            <p class="text-gray-600 mt-2">모두가 같은 사진을 보고 있습니다. 친구들의 글에 공감하며 아이디어를 나눠보세요!</p>
+        </header>
+
+        <!-- Image Display -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="image-container">
+            <div class="bg-gray-200 aspect-ratio-4/3 rounded-lg flex items-center justify-center p-4 text-center">
+                <p class="text-gray-500">사진을 기다리고 있습니다...</p>
+            </div>
+            <div class="bg-gray-200 aspect-ratio-4/3 rounded-lg flex items-center justify-center p-4 text-center">
+                <p class="text-gray-500">여기에 사진이 표시됩니다.</p>
+            </div>
+        </div>
+
+        <!-- Teacher's Controls -->
+        <div id="teacher-controls" class="text-center hidden space-y-3 sm:space-y-0 sm:space-x-3">
+            <!-- <div class="flex flex-wrap justify-center gap-3">
+                <button id="refresh-button"
+                    class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300 shadow-lg">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2" viewBox="0 0 20 20"
+                        fill="currentColor">
+                        <path fill-rule="evenodd"
+                            d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.899 2.139l.868.868a1 1 0 01-1.414 1.414l-.868-.868A5.002 5.002 0 005.999 7H5a1 1 0 01-1-1V3a1 1 0 011-1zm12 1a1 1 0 011 1v3h.001a5.002 5.002 0 00-9.298 3.766l.868.868a1 1 0 11-1.414 1.414l-.868-.868A7.002 7.002 0 0115 6.101V4a1 1 0 011-1z"
+                            clip-rule="evenodd" />
+                    </svg>
+                    새로운 사진 불러오기(글 초기화)
+                </button>
+                <button id="gemini-button"
+                    class="w-full sm:w-auto bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 shadow-lg">
+                    ✨ AI로 영감 얻기
+                </button>
+                <p>&nbsp;</p>
+            </div> -->
+            <h2 class="text-xl font-bold text-yellow-800">교사 모드</h2>
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+                <button id="start-activity-btn" class="control-btn bg-blue-600 hover:bg-blue-700">1. 활동 시작 (사진
+                    불러오기)</button>
+                <button id="activate-word-input-btn" class="control-btn bg-green-600 hover:bg-green-700" disabled>2. 낱말
+                    입력 시작</button>
+                <button id="activate-sentence-input-btn" class="control-btn bg-purple-600 hover:bg-purple-700"
+                    disabled>3. 문장 쓰기 시작</button>
+                <button id="get-ai-inspiration-btn" class="control-btn bg-indigo-500 hover:bg-indigo-600">AI 영감
+                    얻기</button>
+            </div>
+
+            <div class="pt-4 border-t mt-4 flex flex-wrap justify-center gap-3">
+                <button id="export-pdf-btn"
+                    class="flex-grow sm:flex-grow-0 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-5 rounded-lg transition-colors">PDF로
+                    저장</button>
+                <button id="export-csv-btn"
+                    class="flex-grow sm:flex-grow-0 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-lg transition-colors">엑셀(CSV)로
+                    저장</button>
+            </div>
+        </div>
+
+        <div id="ai-helper" class="p-4 bg-purple-50 rounded-lg border-l-4 border-purple-400 hidden">
+            <h3 class="text-lg font-bold text-purple-800 mb-3">✨ AI 도우미가 제안하는 아이디어</h3>
+            <div id="ai-output">
+                <p class="text-gray-600">교사 모드에서 'AI로 영감 얻기' 버튼을 눌러보세요.</p>
+            </div>
+        </div>
+
+        <div id="word-activity-section" class="hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+                <div class="space-y-4">
+                    <h2 class="text-2xl font-bold text-gray-700 border-b pb-2">💡 생각 열기</h2>
+                    <form id="word-form" class="space-y-4 print-hide">
+                        <textarea id="word-input"
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
+                            rows="2" placeholder="사진을 보고 떠오르는 낱말을 '하나씩' 입력해주세요." required></textarea>
+                        <div>
+                            <button type="submit"
+                                class="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300 shadow-md">낱말
+                                제출하기</button>
+                        </div>
+                    </form>
+                </div>
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-700 border-b pb-2">🌈 우리 반 생각 구름</h2>
+                    <div id="word-cloud-feed"
+                        class="p-4 bg-gray-50 rounded-lg mt-4 h-48 overflow-y-auto custom-scrollbar flex flex-wrap gap-3 items-start">
+                        <p class="text-gray-500 text-center w-full">아직 제출된 낱말이 없습니다.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="sentence-activity-section" class="hidden">
+            <form id="sentence-form" class="space-y-4 print-hide mt-6">
+                <textarea id="sentence-input"
+                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
+                    rows="3" placeholder="예) 밤하늘의 고래가 신비로운 숲을 헤엄칩니다." required></textarea>
+                <div class="flex flex-col sm:flex-row gap-3">
+                    <input type="text" id="author-name-input" placeholder="이름을 입력하세요"
+                        class="w-full sm:flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                        required>
+                </div>
+                <div>
+                    <button type="submit"
+                        class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300 shadow-md">문장
+                        제출하기</button>
+                </div>
+            </form>
+        </div>
+        <div>
+            <h2 class="text-2xl font-bold text-gray-700 mb-4 border-b pb-2">실시간 문장 피드</h2>
+            <div id="sentences-feed" class="space-y-3 h-64 overflow-y-auto custom-scrollbar p-2 bg-gray-50 rounded-lg">
+            </div>
+        </div>
+
+        <div id="user-info" class="text-center text-xs text-gray-400 pt-4">로딩 중...</div>
+
+        <div id="password-modal"
+            class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+                <h3 class="text-xl font-bold mb-4">교사 모드</h3>
+                <p class="text-gray-600 mb-4">계속하려면 비밀번호를 입력하세요.</p>
+                <input type="password" id="password-input" class="w-full p-2 border border-gray-300 rounded-md mb-4"
+                    placeholder="비밀번호">
+                <div id="password-error" class="text-red-500 text-sm mb-4 hidden">비밀번호가 틀렸습니다.</div>
+                <div class="flex justify-end space-x-3">
+                    <button id="cancel-password-btn"
+                        class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">취소</button>
+                    <button id="submit-password-btn"
+                        class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">확인</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="toast-notification" class="toast"></div>
+
+        <script type="module">
+            import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+            import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+            import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+            // --- 1. CONFIGURATION ---
+            const firebaseConfig = {
+                apiKey: "AIzaSyB6AzqMt0CByFHu5_YQxltGAK3n8jW_Bmo",
+                authDomain: "imagine-sentences-class.firebaseapp.com",
+                projectId: "imagine-sentences-class",
+                storageBucket: "imagine-sentences-class.firebasestorage.app",
+                messagingSenderId: "863169353628",
+                appId: "1:863169353628:web:b00aa7caedee1090f99a59",
+                measurementId: "G-EQVSNH407N"
+            };
+            const appId = 'my-classroom-2025-final';
+
+            // --- 2. DOM ELEMENT REFERENCES ---
+            // Page Sections
+            const waitingOverlay = document.getElementById('waiting-overlay');
+            const imageContainer = document.getElementById('image-container');
+            const wordActivitySection = document.getElementById('word-activity-section');
+            const sentenceActivitySection = document.getElementById('sentence-activity-section');
+            const sentencesFeed = document.getElementById('sentences-feed');
+            const exportContent = document.getElementById('export-content');
+            const userInfoDisplay = document.getElementById('user-info');
+
+            // Forms & Inputs
+            const wordForm = document.getElementById('word-form');
+            const wordInput = document.getElementById('word-input');
+            const sentenceForm = document.getElementById('sentence-form');
+            const sentenceInput = document.getElementById('sentence-input');
+            const authorNameInput = document.getElementById('author-name-input');
+            const wordCloudFeed = document.getElementById('word-cloud-feed');
+
+            // Buttons
+            const teacherModeBtn = document.getElementById('teacher-mode-btn'); // For students to click
+            const exportPdfBtn = document.getElementById('export-pdf-btn');
+            const exportCsvBtn = document.getElementById('export-csv-btn');
+
+            // Teacher Controls
+            const teacherControls = document.getElementById('teacher-controls');
+            const startActivityBtn = document.getElementById('start-activity-btn');
+            const activateWordInputBtn = document.getElementById('activate-word-input-btn');
+            const activateSentenceInputBtn = document.getElementById('activate-sentence-input-btn');
+            const getAiInspirationBtn = document.getElementById('get-ai-inspiration-btn');
+
+            // AI Helper
+            const aiHelperDiv = document.getElementById('ai-helper');
+            const aiOutputDiv = document.getElementById('ai-output');
+
+            // Password Modal
+            const passwordModal = document.getElementById('password-modal');
+            const passwordInput = document.getElementById('password-input');
+            const passwordError = document.getElementById('password-error');
+            const cancelPasswordBtn = document.getElementById('cancel-password-btn');
+            const submitPasswordBtn = document.getElementById('submit-password-btn');
+
+            // Notifications
+            const toastNotification = document.getElementById('toast-notification');
+
+            // Global Variables
+            let db, auth, userId, isTeacher = false;
+
+            // --- 3. CORE FUNCTIONS ---
+
+            function showToast(message, isError = false) {
+                toastNotification.textContent = message;
+                toastNotification.style.backgroundColor = isError ? '#ef4444' : '#22c55e';
+                toastNotification.classList.add('show');
+                setTimeout(() => { toastNotification.classList.remove('show'); }, 3000);
+            }
+
+            function openPasswordModal() {
+                passwordInput.value = '';
+                passwordError.classList.add('hidden');
+                passwordModal.classList.remove('hidden');
+                passwordInput.focus();
+            }
+
+            function closePasswordModal() {
+                passwordModal.classList.add('hidden');
+            }
+
+            // --- 4. DATA HANDLING & FIRESTORE ---
+
+            async function checkPassword() {
+                const enteredPassword = passwordInput.value;
+                if (!enteredPassword) {
+                    passwordError.textContent = '비밀번호를 입력하세요.';
+                    passwordError.classList.remove('hidden');
+                    return;
+                }
+                try {
+                    const response = await fetch('/.netlify/functions/verifyPassword', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ password: enteredPassword }),
+                    });
+                    const result = await response.json();
+                    if (response.ok && result.success) {
+                        teacherControls.classList.remove('hidden');
+                        teacherModeBtn.classList.add('hidden');
+                        closePasswordModal();
+                        showToast("교사 모드가 활성화되었습니다.");
+                    } else {
+                        passwordError.textContent = '비밀번호가 틀렸습니다.';
+                        passwordError.classList.remove('hidden');
+                    }
+                } catch (error) {
+                    console.error('Password verification error:', error);
+                    passwordError.textContent = '확인 중 오류가 발생했습니다.';
+                    passwordError.classList.remove('hidden');
+                }
+            }
+
+            async function updatePhase(phase) {
+                const appStateRef = doc(db, `/artifacts/${appId}/public/data/appState`);
+                await setDoc(appStateRef, { currentPhase: phase, updatedAt: serverTimestamp() });
+            }
+
+            async function fetchAndSetNewSharedImages() {
+                if (!isTeacher) return;
+                startActivityBtn.disabled = true;
+                startActivityBtn.textContent = '초기화 및 로딩 중...';
+                try {
+                    await updatePhase('waiting');
+                    const sentencesCol = collection(db, `/artifacts/${appId}/public/data/sentences`);
+                    const wordsCol = collection(db, `/artifacts/${appId}/public/data/words`);
+                    const sentenceSnapshot = await getDocs(sentencesCol);
+                    const wordSnapshot = await getDocs(wordsCol);
+                    const deletePromises = [
+                        ...sentenceSnapshot.docs.map(d => deleteDoc(d.ref)),
+                        ...wordSnapshot.docs.map(d => deleteDoc(d.ref))
+                    ];
+                    await Promise.all(deletePromises);
+                    await setDoc(doc(db, `/artifacts/${appId}/public/data/aiHelper`, "current"), { content: null });
+
+                    const topics = ['nature', 'animals', 'things', 'fantasy', 'space'];
+                    const fetchRandomImage = async (query) => {
+                        const response = await fetch(`/.netlify/functions/fetchImage?query=${query}`);
+                        if (!response.ok) throw new Error(`API error: ${response.statusText}`);
+                        return await response.json();
+                    };
+                    const [imageData1, imageData2] = await Promise.all([
+                        fetchRandomImage(topics[Math.floor(Math.random() * topics.length)]),
+                        fetchRandomImage(topics[Math.floor(Math.random() * topics.length)])
+                    ]);
+                    if (imageData1 && imageData2) {
+                        await setDoc(doc(db, `/artifacts/${appId}/public/data/sharedImages`, "current"), {
+                            url1: imageData1.urls.regular, alt1: imageData1.alt_description,
+                            url2: imageData2.urls.regular, alt2: imageData2.alt_description,
+                            updatedAt: serverTimestamp()
+                        });
+                        await updatePhase('images_only');
+                        showToast("새로운 활동이 시작되었습니다!");
+                    } else {
+                        showToast("이미지 로딩에 실패했습니다.", true);
+                    }
+                } catch (error) {
+                    console.error("Error starting activity:", error);
+                    showToast("초기화 중 오류가 발생했습니다.", true);
+                } finally {
+                    startActivityBtn.disabled = false;
+                    startActivityBtn.textContent = '1. 활동 시작 (사진 불러오기)';
+                }
+            }
+
+            async function getAiInspiration() {
+                if (!isTeacher) return;
+                getAiInspirationBtn.disabled = true;
+                getAiInspirationBtn.textContent = 'AI 생각 중...';
+                aiHelperDiv.classList.remove('hidden');
+                aiOutputDiv.innerHTML = '<p class="text-gray-600">Gemini AI에게 물어보고 있습니다...</p>';
+                try {
+                    const imageDoc = await getDoc(doc(db, `/artifacts/${appId}/public/data/sharedImages`, "current"));
+                    if (!imageDoc.exists()) throw new Error("먼저 사진을 불러와주세요.");
+                    const { alt1, alt2 } = imageDoc.data();
+                    const response = await fetch('/.netlify/functions/getAiInspiration', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ alt1, alt2 })
+                    });
+                    if (!response.ok) throw new Error(`AI 함수 호출 실패: ${response.statusText}`);
+                    const result = await response.json();
+                    const aiResponseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                    if (aiResponseText) {
+                        await setDoc(doc(db, `/artifacts/${appId}/public/data/aiHelper`, "current"), {
+                            content: aiResponseText,
+                            updatedAt: serverTimestamp()
+                        });
+                    } else {
+                        throw new Error(result.error || "AI로부터 유효한 응답을 받지 못했습니다.");
+                    }
+                } catch (error) {
+                    console.error("AI Inspiration Error:", error);
+                    aiOutputDiv.innerHTML = `<p class="text-red-500">오류: ${error.message}</p>`;
+                } finally {
+                    getAiInspirationBtn.disabled = false;
+                    getAiInspirationBtn.textContent = 'AI 영감 얻기';
+                }
+            }
+
+            // --- 5. REAL-TIME LISTENERS (UI UPDATES) ---
+
+            function listenForAppState() {
+                const appStateRef = doc(db, `/artifacts/${appId}/public/data/appState`);
+                onSnapshot(appStateRef, (docSnapshot) => {
+                    const phase = docSnapshot.exists() ? docSnapshot.data().currentPhase : 'waiting';
+
+                    // 모든 UI 섹션을 먼저 숨겨서 초기화
+                    waitingOverlay.classList.add('hidden');
+                    imageContainer.classList.add('hidden');
+                    wordActivitySection.classList.add('hidden');
+                    sentenceActivitySection.classList.add('hidden');
+
+                    // 교사인 경우, 다음 단계 버튼을 비활성화하여 순서대로 누르도록 유도
+                    if (isTeacher) {
+                        activateWordInputBtn.disabled = true;
+                        activateSentenceInputBtn.disabled = true;
+                    }
+
+                    // 현재 단계(phase)에 따라 필요한 UI 섹션만 표시
+                    switch (phase) {
+                        case 'images_only':
+                            imageContainer.classList.remove('hidden');
+                            if (isTeacher) activateWordInputBtn.disabled = false;
+                            break;
+                        case 'word_input_active':
+                            imageContainer.classList.remove('hidden');
+                            wordActivitySection.classList.remove('hidden');
+                            if (isTeacher) activateSentenceInputBtn.disabled = false;
+                            break;
+                        case 'sentence_input_active':
+                            imageContainer.classList.remove('hidden');
+                            wordActivitySection.classList.remove('hidden');
+                            sentenceActivitySection.classList.remove('hidden');
+                            break;
+                        case 'waiting':
+                        default:
+                            // ✨ 핵심 수정: 학생일 경우에만 대기 화면을 보여줌
+                            if (!isTeacher) {
+                                waitingOverlay.classList.remove('hidden');
+                            }
+                            break;
+                    }
+                });
+            }
+
+            function listenForSharedImages() {
+                const imageDocRef = doc(db, `/artifacts/${appId}/public/data/sharedImages`, "current");
+                onSnapshot(imageDocRef, (doc) => {
+                    imageContainer.innerHTML = '';
+                    if (doc.exists()) {
+                        const data = doc.data();
+                        const img1 = document.createElement('img');
+                        img1.src = data.url1; img1.alt = data.alt1 || 'Shared image 1'; img1.className = 'w-full h-full object-cover rounded-lg shadow-md';
+                        const img2 = document.createElement('img');
+                        img2.src = data.url2; img2.alt = data.alt2 || 'Shared image 2'; img2.className = 'w-full h-full object-cover rounded-lg shadow-md';
+                        imageContainer.appendChild(img1);
+                        imageContainer.appendChild(img2);
+                    } else {
+                        imageContainer.innerHTML = `<div class="bg-gray-200 aspect-ratio-4/3 rounded-lg flex items-center justify-center p-4 text-center"><p class="text-gray-500">선생님이 활동을 시작하기를 기다리고 있습니다.</p></div><div class="bg-gray-200 aspect-ratio-4/3 rounded-lg flex items-center justify-center p-4 text-center"><p class="text-gray-500">사진이 여기에 표시됩니다.</p></div>`;
+                    }
+                });
+            }
+
+            function listenForAiHelper() {
+                const aiHelperDocRef = doc(db, `/artifacts/${appId}/public/data/aiHelper`, "current");
+                onSnapshot(aiHelperDocRef, (doc) => {
+                    if (doc.exists() && doc.data().content) {
+                        aiHelperDiv.classList.remove('hidden');
+                        // ... (AI Helper 파싱 로직은 기존과 동일하여 생략)
+                    } else {
+                        aiHelperDiv.classList.add('hidden');
+                    }
+                });
+            }
+
+            function listenForWords() {
+                const wordsCol = collection(db, `/artifacts/${appId}/public/data/words`);
+                onSnapshot(query(wordsCol), (snapshot) => {
+                    // ... (생각 구름 표시 로직은 기존과 동일하여 생략)
+                });
+            }
+
+            function listenForSentences() {
+                const sentencesCol = collection(db, `/artifacts/${appId}/public/data/sentences`);
+                onSnapshot(query(sentencesCol), (snapshot) => {
+                    // ... (문장 피드 표시 로직은 기존과 동일하여 생략)
+                });
+            }
+
+            // --- 6. EVENT HANDLERS ---
+
+            async function handleWordFormSubmit(e) {
+                e.preventDefault();
+                const wordText = wordInput.value.trim();
+                const authorName = authorNameInput.value.trim();
+                if (wordText && authorName && userId) {
+                    await addDoc(collection(db, `/artifacts/${appId}/public/data/words`), {
+                        text: wordText, authorName: authorName,
+                        createdAt: serverTimestamp(), authorId: userId,
+                    });
+                    wordInput.value = '';
+                } else if (!authorName) {
+                    showToast("이름을 입력해주세요!", true);
+                } else if (!wordText) {
+                    showToast("낱말을 입력해주세요!", true);
+                }
+            }
+
+            async function handleFormSubmit(e) {
+                e.preventDefault();
+                const sentenceText = sentenceInput.value.trim();
+                const authorName = authorNameInput.value.trim();
+                if (sentenceText && authorName && userId) {
+                    await addDoc(collection(db, `/artifacts/${appId}/public/data/sentences`), {
+                        text: sentenceText, authorName: authorName,
+                        createdAt: serverTimestamp(), authorId: userId, likesBy: []
+                    });
+                    sentenceInput.value = '';
+                } else if (!authorName) {
+                    showToast("이름을 입력해주세요!", true);
+                }
+            }
+
+            async function handleLikeClick(e) {
+                const button = e.target.closest('.like-btn');
+                if (!button || !userId) return;
+                const sentenceId = button.dataset.id;
+                const sentenceRef = doc(db, `/artifacts/${appId}/public/data/sentences`, sentenceId);
+                try {
+                    const docSnap = await getDoc(sentenceRef);
+                    if (docSnap.exists()) {
+                        const likesBy = docSnap.data().likesBy || [];
+                        if (likesBy.includes(userId)) {
+                            await updateDoc(sentenceRef, { likesBy: arrayRemove(userId) });
+                        } else {
+                            await updateDoc(sentenceRef, { likesBy: arrayUnion(userId) });
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error updating likes:", error);
+                    showToast("공감 실패!", true);
+                }
+            }
+
+            function exportToCSV() { /* 기존과 동일 */ }
+            function exportToPDF() { /* 기존과 동일 */ }
+
+
+            // --- 7. APPLICATION INITIALIZATION ---
+
+            async function main() {
+                try {
+                    const app = initializeApp(firebaseConfig);
+                    db = getFirestore(app);
+                    auth = getAuth(app);
+                } catch (e) {
+                    console.error("Firebase init failed:", e);
+                    userInfoDisplay.textContent = "앱 초기화에 실패했습니다. 새로고침 해주세요.";
+                    return;
+                }
+
+                onAuthStateChanged(auth, async (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        userInfoDisplay.textContent = `상상하며 문장 만들기`;
+
+                        // URL을 확인하여 교사인지 학생인지 먼저 결정
+                        const urlParams = new URLSearchParams(window.location.search);
+                        isTeacher = urlParams.get('teacher') === 'true';
+
+                        // 모든 리스너를 먼저 등록
+                        listenForAppState();
+                        listenForSharedImages();
+                        listenForAiHelper();
+                        listenForWords();
+                        listenForSentences();
+
+                        // 모든 이벤트 핸들러를 여기에 등록
+                        wordForm.addEventListener('submit', handleWordFormSubmit);
+                        sentenceForm.addEventListener('submit', handleFormSubmit);
+                        sentencesFeed.addEventListener('click', handleLikeClick);
+                        submitPasswordBtn.addEventListener('click', checkPassword);
+                        cancelPasswordBtn.addEventListener('click', closePasswordModal);
+                        passwordInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkPassword(); });
+                        passwordModal.addEventListener('click', (e) => { if (e.target === passwordModal) closePasswordModal(); });
+
+                        // 역할에 따라 UI 및 특정 이벤트 핸들러를 분기
+                        if (isTeacher) {
+                            waitingOverlay.classList.add('hidden'); // 교사는 대기화면 즉시 숨김
+                            openPasswordModal(); // 비밀번호 입력창 바로 열기
+
+                            // 교사 전용 버튼 이벤트 핸들러 등록
+                            startActivityBtn.addEventListener('click', fetchAndSetNewSharedImages);
+                            activateWordInputBtn.addEventListener('click', () => updatePhase('word_input_active'));
+                            activateSentenceInputBtn.addEventListener('click', () => updatePhase('sentence_input_active'));
+                            getAiInspirationBtn.addEventListener('click', getAiInspiration);
+                            exportPdfBtn.addEventListener('click', exportToPDF);
+                            exportCsvBtn.addEventListener('click', exportToCSV);
+                        } else {
+                            // 학생의 경우, '교사 모드' 버튼이 작동하도록 핸들러 등록
+                            teacherModeBtn.addEventListener('click', openPasswordModal);
+                        }
+
+                    } else {
+                        // 익명 로그인이 실패할 경우를 대비한 재시도 로직
+                        let attempts = 0;
+                        const maxAttempts = 3;
+                        const signIn = async () => {
+                            try {
+                                await signInAnonymously(auth);
+                            } catch (error) {
+                                attempts++;
+                                if (attempts < maxAttempts) {
+                                    setTimeout(signIn, 2000);
+                                } else {
+                                    userInfoDisplay.textContent = "인증 실패. 새로고침 해주세요.";
+                                }
+                            }
+                        };
+                        await signIn();
+                    }
+                });
+            }
+
+            main();
+        </script>
+</body>
+
+</html>
