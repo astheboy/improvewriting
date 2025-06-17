@@ -415,15 +415,28 @@
                 }
             });
         }
-
         function listenForAiHelper() {
             const aiHelperDocRef = doc(db, `/artifacts/${appId}/public/data/aiHelper`, "current");
             onSnapshot(aiHelperDocRef, (doc) => {
                 if (doc.exists() && doc.data().content) {
                     aiHelperDiv.classList.remove('hidden');
+                    const rawContent = doc.data().content; // 원본 내용을 변수에 저장
+
                     try {
-                        const rawText = doc.data().content.replace(/```json/g, '').replace(/```/g, '').trim();
+                        // AI 응답에서 JSON 부분만 최대한 추출
+                        // ```json ... ``` 패턴 또는 { ... } 패턴을 찾습니다.
+                        const jsonMatch = rawContent.match(/```json\s*([\s\S]*?)\s*```|({[\s\S]*})/);
+                        
+                        if (!jsonMatch) {
+                            // JSON 형식을 전혀 찾을 수 없는 경우
+                            throw new Error("응답에서 JSON 형식을 찾을 수 없습니다.");
+                        }
+
+                        // 찾은 JSON 문자열 (첫 번째 또는 두 번째 그룹)
+                        const rawText = (jsonMatch[1] || jsonMatch[2]).trim();
                         const aiJson = JSON.parse(rawText);
+
+                        // 성공적으로 파싱된 경우, HTML 생성
                         let html = `<p class="mb-4"><strong class="text-purple-600">💡 예시 문장:</strong> ${aiJson.exampleSentence}</p>`;
                         html += `<div class="mb-2"><strong class="text-purple-600">🔑 연관 단어 1:</strong></div><div class="flex flex-wrap gap-2 mb-4">`;
                         (aiJson.keywords.theme1 || []).forEach(word => { html += `<span class="keyword-tag">${word}</span>`; });
@@ -431,15 +444,21 @@
                         (aiJson.keywords.theme2 || []).forEach(word => { html += `<span class="keyword-tag">${word}</span>`; });
                         html += `</div>`;
                         aiOutputDiv.innerHTML = html;
+
                     } catch (e) {
-                        aiOutputDiv.innerHTML = `<p class="text-red-500">AI 응답 처리 중 오류 발생.</p>`;
+                        // 파싱 실패 시, 에러 메시지와 함께 원본 내용을 그대로 보여줌
+                        console.error("AI 응답 파싱 실패:", e);
+                        aiOutputDiv.innerHTML = `
+                            <p class="text-red-500">AI 응답 처리 중 오류가 발생했습니다.</p>
+                            <p class="text-xs text-gray-500 mt-2">수신된 원본 응답:</p>
+                            <pre class="bg-gray-100 p-2 rounded mt-1 text-xs whitespace-pre-wrap">${rawContent}</pre>
+                        `;
                     }
                 } else {
                     aiHelperDiv.classList.add('hidden');
                 }
             });
         }
-
         function listenForSentences() {
             const sentencesCol = collection(db, `/artifacts/${appId}/public/data/sentences`);
             onSnapshot(query(sentencesCol), (snapshot) => {
