@@ -359,17 +359,37 @@
             try {
                 const imageDoc = await getDoc(doc(db, `/artifacts/${appId}/public/data/sharedImages`, "current"));
                 if (!imageDoc.exists()) throw new Error("먼저 사진을 불러와주세요.");
-                const { alt1, alt2 } = imageDoc.data();
-                const prompt = `You are a creative writing assistant for Korean elementary school students. Based on two themes, "${alt1 || 'a beautiful landscape'}" and "${alt2 || 'an interesting object'}", please perform the following two tasks and provide the response in a single, valid JSON object. Do not include any text outside the JSON object. 1. "exampleSentence": Write one creative, fun, and easy-to-understand example sentence in Korean that connects the two themes. 2. "keywords": Suggest 5 helpful keywords in Korean for each theme. The result should be an object with two keys, "theme1" and "theme2", each containing an array of 5 strings.`;
-                const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
-                const apiKey = firebaseConfig.apiKey;
 
-                const response = await fetch('/.netlify/functions/getAiInspiration', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-                if (!response.ok) throw new Error(`Gemini API error: ${response.statusText}`);
+                // 1. Firestore에서 이미지 설명만 가져옵니다.
+                const { alt1, alt2 } = imageDoc.data();
+
+                // 2. 프롬프트나 payload를 만들지 않고, 서버리스 함수에 alt1, alt2 값만 보냅니다.
+                const response = await fetch('/.netlify/functions/getAiInspiration', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ alt1, alt2 }) // <<< 핵심 수정사항
+                });
+
+                if (!response.ok) {
+                    throw new Error(`AI 함수 호출 실패: ${response.statusText}`);
+                }
+
                 const result = await response.json();
-                if (result.candidates && result.candidates.length > 0) {
-                    await setDoc(doc(db, `/artifacts/${appId}/public/data/aiHelper`, "current"), { content: result.candidates[0].content.parts[0].text, updatedAt: serverTimestamp() });
-                } else throw new Error("AI로부터 유효한 응답을 받지 못했습니다.");
+                const aiResponseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+                if (aiResponseText) {
+                    // 3. Firestore에 AI의 최종 응답 텍스트를 저장합니다.
+                    await setDoc(doc(db, `/artifacts/${appId}/public/data/aiHelper`, "current"), { 
+                        content: aiResponseText, 
+                        updatedAt: serverTimestamp() 
+                    });
+                } else {
+                    // 서버로부터 받은 상세 에러 메시지가 있다면 표시합니다.
+                    const errorDetail = result.error || "AI로부터 유효한 응답을 받지 못했습니다.";
+                    throw new Error(errorDetail);
+                }
             } catch (error) {
                 console.error("AI Inspiration Error:", error);
                 aiOutputDiv.innerHTML = `<p class="text-red-500">오류: ${error.message}</p>`;
