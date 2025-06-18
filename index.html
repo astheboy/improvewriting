@@ -341,13 +341,13 @@
             const appStateRef = doc(db, `/artifacts/${appId}/public/data/appState/current`);
             onSnapshot(appStateRef, (docSnapshot) => {
                 const phase = docSnapshot.exists() ? docSnapshot.data().currentPhase : 'waiting';
-                waitingOverlay.classList.add('hidden'); imageContainer.classList.add('hidden'); wordActivitySection.classList.add('hidden'); sentenceActivitySection.classList.add('hidden');
+                imageContainer.classList.add('hidden'); wordActivitySection.classList.add('hidden'); sentenceActivitySection.classList.add('hidden');
                 if (isTeacher) { activateWordInputBtn.disabled = true; activateSentenceInputBtn.disabled = true; }
                 switch (phase) {
                     case 'images_only': imageContainer.classList.remove('hidden'); if (isTeacher) activateWordInputBtn.disabled = false; break;
                     case 'word_input_active': imageContainer.classList.remove('hidden'); wordActivitySection.classList.remove('hidden'); if (isTeacher) activateSentenceInputBtn.disabled = false; break;
                     case 'sentence_input_active': imageContainer.classList.remove('hidden'); wordActivitySection.classList.remove('hidden'); sentenceActivitySection.classList.remove('hidden'); break;
-                    case 'waiting': default: if (!isTeacher) { waitingOverlay.classList.remove('hidden'); } break;
+                    // case 'waiting': default: if (!isTeacher) { waitingOverlay.classList.remove('hidden'); } break;
                 }
             });
         };
