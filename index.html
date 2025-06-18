@@ -369,14 +369,11 @@
                             allKeywords.forEach(keyword => {
                                 htmlOutput += `<span class="keyword-tag">${keyword}</span>`;
                             });
-
+                            htmlOutput += '</div>';
                             htmlOutput += `
                         <h4 class="text-md font-bold text-purple-700 mb-2">💡 AI 추천 문장</h4>
                         <p class="mb-4 p-3 bg-white rounded-md shadow-sm">${aiData.exampleSentence}</p>
                     `;
-
-
-                            htmlOutput += '</div>';
                             aiOutputDiv.innerHTML = htmlOutput;
                         } else {
                             throw new Error("Invalid AI data structure.");
