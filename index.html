@@ -344,46 +344,43 @@
 
         // ----- START: ADDED FUNCTION -----
         // AI 도우미 데이터를 실시간으로 감지하고 UI에 반영하는 함수
-        // AI 도우미 데이터를 실시간으로 감지하고 UI에 반영하는 함수
         const listenForAiHelper = () => {
             const aiHelperDocRef = doc(db, `/artifacts/${appId}/public/data/aiHelper/current`);
             onSnapshot(aiHelperDocRef, (doc) => {
                 if (doc.exists() && doc.data().content) {
                     const content = doc.data().content;
-                    let htmlOutput = ''; // 최종적으로 출력될 HTML을 담을 변수
+                    let htmlOutput = '';
 
                     try {
-                        // 1. content(문자열)를 JSON 객체로 파싱
                         const aiData = JSON.parse(content);
 
-                        // 2. 파싱된 데이터를 기반으로 HTML 구조 생성
-                        if (aiData.exampleSentence && aiData.keywords) {
-                            // 2-1. 추천 문장 부분 생성
+                        // 기존 'keywords' 대신 'theme1', 'theme2' 키가 있는지 확인합니다.
+                        if (aiData.exampleSentence && aiData.theme1 && aiData.theme2) {
+                            // 관련 키워드 부분을 생성합니다.
+                            htmlOutput += '<h4 class="text-md font-bold text-purple-700 mb-2">🔑 관련 키워드</h4>';
+                            htmlOutput += '<div class="flex flex-wrap gap-2">';
+
+                            // 추천 문장 부분을 생성합니다.
                             htmlOutput += `
                         <h4 class="text-md font-bold text-purple-700 mb-2">💡 AI 추천 문장</h4>
                         <p class="mb-4 p-3 bg-white rounded-md shadow-sm">${aiData.exampleSentence}</p>
                     `;
 
-                            // 2-2. 관련 키워드 부분 생성
-                            htmlOutput += '<h4 class="text-md font-bold text-purple-700 mb-2">🔑 관련 키워드</h4>';
-                            htmlOutput += '<div class="flex flex-wrap gap-2">';
-
-                            // keywords 객체 안의 모든 키워드 배열을 순회하며 태그 생성
-                            Object.values(aiData.keywords).forEach(keywordArray => {
-                                keywordArray.forEach(keyword => {
-                                    htmlOutput += `<span class="keyword-tag">${keyword}</span>`;
-                                });
+                            // theme1과 theme2 배열을 합쳐서 모든 키워드를 순회하며 태그를 생성합니다.
+                            const allKeywords = [...aiData.theme1, ...aiData.theme2];
+                            allKeywords.forEach(keyword => {
+                                htmlOutput += `<span class="keyword-tag">${keyword}</span>`;
                             });
 
                             htmlOutput += '</div>';
 
                             aiOutputDiv.innerHTML = htmlOutput;
                         } else {
-                            // JSON 형식은 맞지만, 예상한 데이터(exampleSentence, keywords)가 없는 경우
-                            throw new Error("Invalid AI data structure");
+                            // JSON 형식은 맞지만, 예상한 데이터 구조가 아닌 경우 오류를 발생시킵니다.
+                            throw new Error("Invalid AI data structure. Expected exampleSentence, theme1, and theme2.");
                         }
                     } catch (e) {
-                        // 3. JSON 파싱 실패 시(일반 텍스트 등) 원본 내용 그대로 표시 (안전장치)
+                        // JSON 파싱에 실패하거나 데이터 구조가 맞지 않으면 원본 내용을 그대로 표시합니다.
                         console.error("Could not parse AI helper content, displaying as raw text:", e);
                         aiOutputDiv.innerHTML = `<p class="text-gray-700 whitespace-pre-wrap">${content}</p>`;
                     }
