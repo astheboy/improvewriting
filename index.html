@@ -362,10 +362,6 @@
                         const aiData = JSON.parse(content);
 
                         if (aiData.exampleSentence && aiData.theme1 && aiData.theme2) {
-                            htmlOutput += `
-                        <h4 class="text-md font-bold text-purple-700 mb-2">💡 AI 추천 문장</h4>
-                        <p class="mb-4 p-3 bg-white rounded-md shadow-sm">${aiData.exampleSentence}</p>
-                    `;
                             htmlOutput += '<h4 class="text-md font-bold text-purple-700 mb-2">🔑 관련 키워드</h4>';
                             htmlOutput += '<div class="flex flex-wrap gap-2">';
 
@@ -373,6 +369,12 @@
                             allKeywords.forEach(keyword => {
                                 htmlOutput += `<span class="keyword-tag">${keyword}</span>`;
                             });
+
+                            htmlOutput += `
+                        <h4 class="text-md font-bold text-purple-700 mb-2">💡 AI 추천 문장</h4>
+                        <p class="mb-4 p-3 bg-white rounded-md shadow-sm">${aiData.exampleSentence}</p>
+                    `;
+
 
                             htmlOutput += '</div>';
                             aiOutputDiv.innerHTML = htmlOutput;
