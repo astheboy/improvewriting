@@ -365,9 +365,9 @@
         const handleWordFormSubmit = async (event) => {
             event.preventDefault();
             const wordText = wordInput.value.trim(); const authorName = authorNameInput.value.trim();
-            if (!authorName) { showToast("이름을 입력해주세요!", true); return; }
+            // if (!authorName) { showToast("이름을 입력해주세요!", true); return; }
             if (!wordText) { showToast("낱말을 입력해주세요!", true); return; }
-            if (userId) { try { await addDoc(collection(db, `/artifacts/${appId}/public/data/words`), { text: wordText, authorName: authorName, createdAt: serverTimestamp(), authorId: userId, }); wordInput.value = ''; } catch (error) { console.error("Error submitting word:", error); showToast("낱말 제출 중 오류가 발생했습니다.", true); } }
+            if (userId) { try { await addDoc(collection(db, `/artifacts/${appId}/public/data/words`), { text: wordText, createdAt: serverTimestamp(), authorId: userId, }); wordInput.value = ''; } catch (error) { console.error("Error submitting word:", error); showToast("낱말 제출 중 오류가 발생했습니다.", true); } }
         };
         const handleFormSubmit = async (event) => {
             event.preventDefault();
