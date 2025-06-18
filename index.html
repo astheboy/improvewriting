@@ -377,7 +377,65 @@
             if (userId) { try { await addDoc(collection(db, `/artifacts/${appId}/public/data/sentences`), { text: sentenceText, authorName: authorName, createdAt: serverTimestamp(), authorId: userId, likesBy: [] }); sentenceInput.value = ''; } catch (error) { console.error("Error submitting sentence:", error); showToast("문장 제출 중 오류가 발생했습니다.", true); } }
         };
         const handleLikeClick = async (e) => { const button = e.target.closest('.like-btn'); if (!button || !userId) return; const sentenceId = button.dataset.id; const sentenceRef = doc(db, `/artifacts/${appId}/public/data/sentences`, sentenceId); try { const docSnap = await getDoc(sentenceRef); if (docSnap.exists()) { const likesBy = docSnap.data().likesBy || []; if (likesBy.includes(userId)) { await updateDoc(sentenceRef, { likesBy: arrayRemove(userId) }); } else { await updateDoc(sentenceRef, { likesBy: arrayUnion(userId) }); } } } catch (error) { console.error("Error updating likes:", error); showToast("공감 실패!", true); } };
+        async function exportToCSV() {
+            if (!isTeacher) return;
+            showToast("CSV 파일 생성 중...");
+            try {
+                const sentencesCol = collection(db, `/artifacts/${appId}/public/data/sentences`);
+                const snapshot = await getDocs(query(sentencesCol));
+                let csvContent = "data:text/csv;charset=utf-8,작성자,문장,공감 수\n";
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const author = data.authorName || '익명';
+                    const sentence = `"${data.text.replace(/"/g, '""')}"`; // Handle quotes
+                    const likes = (data.likesBy || []).length;
+                    csvContent += [author, sentence, likes].join(",") + "\n";
+                });
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `수업결과_${new Date().toISOString().slice(0, 10)}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (error) {
+                console.error("CSV Export Error: ", error);
+                showToast("CSV 저장 중 오류 발생", true);
+            }
+        }
 
+        function exportToPDF() {
+            if (!isTeacher) return;
+            showToast("PDF 파일 생성 중... 잠시만 기다려주세요.");
+            // Temporarily hide elements not for export
+            document.querySelectorAll('.print-hide').forEach(el => el.classList.add('hidden'));
+
+            html2canvas(exportContent, {
+                scale: 2, // Higher scale for better quality
+                useCORS: true // Important for external images
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                const canvasWidth = canvas.width;
+                const canvasHeight = canvas.height;
+                const ratio = canvasWidth / canvasHeight;
+                const width = pdfWidth - 20; // with margin
+                const height = width / ratio;
+
+                pdf.addImage(imgData, 'PNG', 10, 10, width, height);
+                pdf.save(`수업결과_${new Date().toISOString().slice(0, 10)}.pdf`);
+
+                // Show hidden elements again
+                document.querySelectorAll('.print-hide').forEach(el => el.classList.remove('hidden'));
+            }).catch(error => {
+                console.error("PDF Export Error: ", error);
+                showToast("PDF 저장 중 오류 발생", true);
+                document.querySelectorAll('.print-hide').forEach(el => el.classList.remove('hidden'));
+            });
+        }
         const main = async () => {
             try {
                 initializeApp(firebaseConfig);
@@ -414,8 +472,8 @@
                         activateWordInputBtn.addEventListener('click', () => updatePhase('word_input_active'));
                         activateSentenceInputBtn.addEventListener('click', () => updatePhase('sentence_input_active'));
                         getAiInspirationBtn.addEventListener('click', getAiInspiration);
-                        // exportPdfBtn.addEventListener('click', exportToPDF); // PDF, CSV 내보내기 함수는 구현되지 않아 주석 처리
-                        // exportCsvBtn.addEventListener('click', exportToCSV);
+                        exportPdfBtn.addEventListener('click', exportToPDF); // PDF, CSV 내보내기 함수는 구현되지 않아 주석 처리
+                        exportCsvBtn.addEventListener('click', exportToCSV);
                     } else {
                         teacherModeBtn.addEventListener('click', openPasswordModal);
                     }
