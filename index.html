@@ -121,13 +121,32 @@
 
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
 
-    <div id="waiting-overlay" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
-        <h1 class="text-4xl font-bold text-gray-800">선생님을 기다리고 있어요...</h1>
-        <p class="text-lg text-gray-600 mt-4">수업이 곧 시작됩니다!</p>
-        <div class="spinner mt-8"></div>
+    <div id="login-container" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
+        <h1 class="text-4xl font-bold text-gray-800">상상하며 글쓰기</h1>
+        <p class="text-lg text-gray-600 mt-4">수업을 시작하려면 구글 계정으로 로그인해주세요.</p>
+        <button id="google-login-btn"
+            class="mt-8 bg-white py-2 px-6 border border-gray-300 rounded-full shadow-md hover:shadow-lg transition-shadow flex items-center gap-3">
+            <svg class="w-6 h-6" viewBox="0 0 48 48">
+                <path fill="#EA4335"
+                    d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z">
+                </path>
+                <path fill="#4285F4"
+                    d="M46.98 24.55c0-1.57-.15-3.09-.42-4.55H24v8.51h12.8c-.57 2.84-2.3 5.44-4.92 7.18l7.98 6.19C45.27 38.91 48 32.16 48 24c0-.73-.04-1.45-.11-2.16l-1.01.71z">
+                </path>
+                <path fill="#FBBC05"
+                    d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z">
+                </path>
+                <path fill="#34A853"
+                    d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.98-6.19c-2.11 1.45-4.82 2.3-7.91 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z">
+                </path>
+                <path fill="none" d="M0 0h48v48H0z"></path>
+            </svg>
+            <span class="font-semibold text-gray-700">Google 계정으로 로그인</span>
+        </button>
     </div>
 
-    <div id="export-content" class="w-full max-w-5xl bg-white rounded-2xl shadow-xl p-6 md:p-8 space-y-6 relative">
+    <div id="export-content"
+        class="w-full max-w-5xl bg-white rounded-2xl shadow-xl p-6 md:p-8 space-y-6 relative hidden">
 
         <div class="absolute top-4 right-4 print-hide">
             <button id="teacher-mode-btn"
@@ -214,7 +233,8 @@
             </div>
         </div>
 
-        <div id="user-info" class="text-center text-xs text-gray-400 pt-4"></div>
+        <div id="user-info" class="text-center text-sm text-gray-500 pt-4 flex justify-center items-center gap-4">
+        </div>
     </div>
 
     <div id="password-modal"
@@ -238,8 +258,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-        import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, getDocs, deleteDoc, writeBatch, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB6AzqMt0CByFHu5_YQxltGAK3n8jW_Bmo",
@@ -251,6 +271,9 @@
             measurementId: "G-EQVSNH407N"
         };
         const appId = 'my-classroom-2025-final';
+
+        const loginContainer = document.getElementById('login-container'); // ADDED
+        const googleLoginBtn = document.getElementById('google-login-btn'); // ADDED
 
         const waitingOverlay = document.getElementById('waiting-overlay'), imageContainer = document.getElementById('image-container'), wordActivitySection = document.getElementById('word-activity-section'), sentenceActivitySection = document.getElementById('sentence-activity-section'), sentencesFeed = document.getElementById('sentences-feed'), exportContent = document.getElementById('export-content'), userInfoDisplay = document.getElementById('user-info'), wordForm = document.getElementById('word-form'), wordInput = document.getElementById('word-input'), sentenceForm = document.getElementById('sentence-form'), sentenceInput = document.getElementById('sentence-input'), authorNameInput = document.getElementById('author-name-input'), wordCloudFeed = document.getElementById('word-cloud-feed'), teacherModeBtn = document.getElementById('teacher-mode-btn'), exportPdfBtn = document.getElementById('export-pdf-btn'), exportCsvBtn = document.getElementById('export-csv-btn'), teacherControls = document.getElementById('teacher-controls'), startActivityBtn = document.getElementById('start-activity-btn'), activateWordInputBtn = document.getElementById('activate-word-input-btn'), activateSentenceInputBtn = document.getElementById('activate-sentence-input-btn'), getAiInspirationBtn = document.getElementById('get-ai-inspiration-btn'), aiHelperDiv = document.getElementById('ai-helper'), aiOutputDiv = document.getElementById('ai-output'), passwordModal = document.getElementById('password-modal'), passwordInput = document.getElementById('password-input'), passwordError = document.getElementById('password-error'), cancelPasswordBtn = document.getElementById('cancel-password-btn'), submitPasswordBtn = document.getElementById('submit-password-btn'), toastNotification = document.getElementById('toast-notification');
         let db, auth, userId, isTeacher = false;
@@ -498,6 +521,24 @@
                 document.querySelectorAll('.print-hide').forEach(el => el.classList.remove('hidden'));
             });
         }
+        // --- 로그인/로그아웃 처리 함수 ---
+        const showLoginScreen = () => {
+            loginContainer.classList.remove('hidden');
+            exportContent.classList.add('hidden');
+        };
+
+        const showAppScreen = (user) => {
+            loginContainer.classList.add('hidden');
+            exportContent.classList.remove('hidden');
+            // 사용자 정보 및 로그아웃 버튼 표시
+            userInfoDisplay.innerHTML = `
+                <span class="font-semibold">${user.displayName}님, 환영합니다.</span>
+                <button id="logout-btn" class="bg-gray-200 hover:bg-gray-300 text-xs text-gray-700 font-bold py-1 px-3 rounded-lg">로그아웃</button>
+            `;
+            document.getElementById('logout-btn').addEventListener('click', () => {
+                signOut(auth);
+            });
+        };
         const main = async () => {
             try {
                 initializeApp(firebaseConfig);
@@ -506,6 +547,10 @@
 
             onAuthStateChanged(auth, async (user) => {
                 if (user) {
+                    // 사용자가 로그인한 경우
+                    userId = user.uid;
+                    showAppScreen(user);
+
                     userId = user.uid; userInfoDisplay.textContent = '상상하며 글쓰기';
 
                     const urlParams = new URLSearchParams(window.location.search);
@@ -526,6 +571,8 @@
                     passwordInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkPassword(); });
                     passwordModal.addEventListener('click', (e) => { if (e.target === passwordModal) closePasswordModal(); });
 
+                    console.log(`${user.displayName} 사용자가 로그인했습니다.`);
+
                     if (isTeacher) {
                         waitingOverlay.classList.add('hidden');
                         openPasswordModal();
@@ -540,7 +587,22 @@
                         teacherModeBtn.addEventListener('click', openPasswordModal);
                     }
                 } else {
-                    try { await signInAnonymously(auth); } catch (error) { console.error("Anonymous sign-in failed", error); }
+                    // 사용자가 로그아웃한 경우
+                    userId = null;
+                    showLoginScreen();
+                    console.log("사용자가 로그아웃했습니다.");
+                    // try { await signInAnonymously(auth); } catch (error) { console.error("Anonymous sign-in failed", error); }
+                }
+            });
+            // --- ADDED: 구글 로그인 버튼 이벤트 리스너 ---
+            googleLoginBtn.addEventListener('click', async () => {
+                const provider = new GoogleAuthProvider();
+                try {
+                    await signInWithPopup(auth, provider);
+                    // 로그인 성공 시 onAuthStateChanged가 자동으로 감지하여 처리합니다.
+                } catch (error) {
+                    console.error("Google sign-in error", error);
+                    showToast("구글 로그인 중 오류가 발생했습니다.", true);
                 }
             });
         };
