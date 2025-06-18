@@ -137,7 +137,7 @@
         </div>
 
         <header class="text-center pt-8">
-            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">AI 문장 만들기</h1>
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">상상하며 글쓰기</h1>
             <p class="text-gray-600 mt-2">모두가 같은 사진을 보고 있습니다. 친구들의 글에 공감하며 아이디어를 나눠보세요!</p>
         </header>
 
@@ -506,7 +506,7 @@
 
             onAuthStateChanged(auth, async (user) => {
                 if (user) {
-                    userId = user.uid; userInfoDisplay.textContent = '수업에 참여해주셔서 감사합니다!';
+                    userId = user.uid; userInfoDisplay.textContent = '상상하며 글쓰기';
 
                     const urlParams = new URLSearchParams(window.location.search);
                     isTeacher = urlParams.get('teacher') === 'true';
