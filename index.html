@@ -342,6 +342,23 @@
             });
         };
 
+        // ----- START: ADDED FUNCTION -----
+        // AI 도우미 데이터를 실시간으로 감지하고 UI에 반영하는 함수
+        const listenForAiHelper = () => {
+            const aiHelperDocRef = doc(db, `/artifacts/${appId}/public/data/aiHelper/current`);
+            onSnapshot(aiHelperDocRef, (doc) => {
+                if (doc.exists() && doc.data().content) {
+                    const content = doc.data().content;
+                    // AI 응답의 줄바꿈(\n)을 HTML <br> 태그로 변환하여 UI에 표시
+                    aiOutputDiv.innerHTML = `<p class="text-gray-700 whitespace-pre-wrap">${content}</p>`;
+                    aiHelperDiv.classList.remove('hidden');
+                } else {
+                    aiHelperDiv.classList.add('hidden');
+                }
+            });
+        };
+        // ----- END: ADDED FUNCTION -----
+
         const listenForWords = () => { const wordsCol = collection(db, `/artifacts/${appId}/public/data/words`); onSnapshot(query(wordsCol), (snapshot) => { if (snapshot.empty) { wordCloudFeed.innerHTML = '<p class="text-gray-500 text-center w-full">아직 제출된 낱말이 없습니다.</p>'; return; } wordCloudFeed.innerHTML = ''; const words = snapshot.docs.map(doc => doc.data().text); const wordCounts = words.reduce((acc, word) => { acc[word] = (acc[word] || 0) + 1; return acc; }, {}); const maxCount = Math.max(...Object.values(wordCounts)); for (const [word, count] of Object.entries(wordCounts)) { const el = document.createElement('span'); el.className = 'keyword-tag'; el.textContent = word; const fontSize = 1 + (count / maxCount); el.style.fontSize = `${Math.min(fontSize, 2)}rem`; el.style.opacity = 0.6 + (count / maxCount) * 0.4; wordCloudFeed.appendChild(el); } }); };
         const listenForSentences = () => { const sentencesCol = collection(db, `/artifacts/${appId}/public/data/sentences`); onSnapshot(query(sentencesCol), (snapshot) => { if (snapshot.empty) { sentencesFeed.innerHTML = '<p class="text-gray-500 text-center">아직 제출된 문장이 없습니다.</p>'; return; } const sentences = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0)); sentencesFeed.innerHTML = ''; sentences.forEach(data => { const el = document.createElement('div'); el.className = 'bg-white p-3 rounded-lg border border-gray-200 shadow-sm'; const authorDisplay = data.authorName ? `작성자: ${data.authorName}` : `익명`; const likesBy = data.likesBy || []; const likeCount = likesBy.length; const userHasLiked = userId && likesBy.includes(userId); el.innerHTML = `<p class="text-gray-800">${data.text}</p><div class="flex justify-between items-center mt-2 pt-2 border-t border-gray-100"><span class="text-xs text-gray-500">${authorDisplay}</span><button class="like-btn ${userHasLiked ? 'liked' : ''}" data-id="${data.id}">❤️ <span class="like-count">${likeCount}</span></button></div>`; sentencesFeed.appendChild(el); }); sentencesFeed.scrollTop = sentencesFeed.scrollHeight; }); };
 
@@ -374,7 +391,12 @@
                     const urlParams = new URLSearchParams(window.location.search);
                     isTeacher = urlParams.get('teacher') === 'true';
 
-                    listenForAppState(); listenForSharedImages(); listenForWords(); listenForSentences(); listenForAiHelper();
+                    // 모든 리스너(listener) 함수들을 정상적으로 호출
+                    listenForAppState();
+                    listenForSharedImages();
+                    listenForWords();
+                    listenForSentences();
+                    listenForAiHelper(); // 정의된 함수를 호출
 
                     wordForm.addEventListener('submit', handleWordFormSubmit);
                     sentenceForm.addEventListener('submit', handleFormSubmit);
@@ -392,8 +414,8 @@
                         activateWordInputBtn.addEventListener('click', () => updatePhase('word_input_active'));
                         activateSentenceInputBtn.addEventListener('click', () => updatePhase('sentence_input_active'));
                         getAiInspirationBtn.addEventListener('click', getAiInspiration);
-                        exportPdfBtn.addEventListener('click', exportToPDF);
-                        exportCsvBtn.addEventListener('click', exportToCSV);
+                        // exportPdfBtn.addEventListener('click', exportToPDF); // PDF, CSV 내보내기 함수는 구현되지 않아 주석 처리
+                        // exportCsvBtn.addEventListener('click', exportToCSV);
                     } else {
                         teacherModeBtn.addEventListener('click', openPasswordModal);
                     }
