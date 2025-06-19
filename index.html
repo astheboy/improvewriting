@@ -679,28 +679,57 @@
 
         function exportToPDF() {
             showToast("PDF 파일 생성 중... 잠시만 기다려주세요.");
+
+            const containerToExport = document.getElementById('export-content');
+            const feed = document.getElementById('sentences-feed');
+
+            // 1. (준비) 스타일을 임시로 변경하여 전체 컨텐츠가 보이도록 함
+            const originalFeedHeight = feed.style.height;
+            const originalFeedOverflow = feed.style.overflowY;
+
+            feed.style.height = 'auto';
+            feed.style.overflowY = 'visible';
+
             document.querySelectorAll('.print-hide').forEach(el => el.style.visibility = 'hidden');
 
-            html2canvas(exportContent, {
+            // 2. (캡처) 길어진 전체 영역을 하나의 이미지로 캡처
+            html2canvas(containerToExport, {
                 scale: 2,
-                useCORS: true
+                useCORS: true,
+                windowWidth: containerToExport.scrollWidth,
+                windowHeight: containerToExport.scrollHeight
             }).then(canvas => {
                 const imgData = canvas.toDataURL('image/png');
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('p', 'mm', 'a4');
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const canvasWidth = canvas.width;
-                const canvasHeight = canvas.height;
-                const ratio = canvasWidth / canvasHeight;
-                const width = pdfWidth;
-                const height = width / ratio;
+                const imgWidth = 210; // A4 가로 (mm)
+                const pageHeight = 297; // A4 세로 (mm)
+                const imgHeight = canvas.height * imgWidth / canvas.width;
 
-                pdf.addImage(imgData, 'PNG', 0, 0, width, height);
+                let heightLeft = imgHeight;
+                let position = 0;
+
+                const pdf = new jsPDF('p', 'mm', 'a4');
+
+                // 3. (자르기 및 붙여넣기) 첫 페이지 추가
+                pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                heightLeft -= pageHeight;
+
+                // 내용이 남았다면 새 페이지를 추가하며 반복
+                while (heightLeft > 0) {
+                    position = -pageHeight + (imgHeight - heightLeft);
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                    heightLeft -= pageHeight;
+                }
+
                 pdf.save(`수업결과_${new Date().toISOString().slice(0, 10)}.pdf`);
+
             }).catch(error => {
                 console.error("PDF Export Error: ", error);
                 showToast("PDF 저장 중 오류 발생", true);
             }).finally(() => {
+                // 4. (복구) 임시로 변경했던 스타일을 원래대로 되돌림
+                feed.style.height = originalFeedHeight;
+                feed.style.overflowY = originalFeedOverflow;
                 document.querySelectorAll('.print-hide').forEach(el => el.style.visibility = 'visible');
             });
         }
