@@ -575,7 +575,16 @@
             };
             await setDoc(userRef, userData, { merge: true }); // 없으면 생성, 있으면 병합
         };
-
+        const generateJoinCode = (length = 6) => {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
+            // 참고: 이 방식은 코드가 중복될 수 있는 아주 희박한 가능성이 있습니다.
+            // 사용자가 매우 많은 서비스에서는 DB를 확인하여 중복을 피하는 로직이 필요합니다.
+        };
         // --- 대시보드 기능 함수 ---
         const setupDashboard = (user) => {
             dashboardWelcome.textContent = `${user.displayName}님, 환영합니다.`;
@@ -583,10 +592,31 @@
             // 로그아웃 버튼 이벤트
             logoutBtn.addEventListener('click', () => signOut(auth));
 
-            // 새 클래스 만들기 버튼 이벤트 (다음 단계에서 구현)
-            createClassBtn.addEventListener('click', () => {
-                // TODO: 다음 단계에서 클래스 생성 로직 구현
-                alert('새 클래스 만들기 기능은 다음 단계에서 구현됩니다.');
+            // --- [수정됨] 새 클래스 만들기 버튼 이벤트 ---
+            createClassBtn.addEventListener('click', async () => {
+                const className = prompt("새 클래스의 이름을 입력해주세요:", "예: 6학년 창의적 글쓰기");
+
+                if (className && className.trim() !== "") {
+                    try {
+                        const joinCode = generateJoinCode();
+
+                        // Firestore 'classrooms' 컬렉션에 새 문서 추가
+                        await addDoc(collection(db, "classrooms"), {
+                            className: className.trim(),
+                            teacherId: user.uid, // 현재 로그인한 교사의 ID
+                            joinCode: joinCode,
+                            createdAt: serverTimestamp()
+                        });
+
+                        alert(`'${className}' 클래스가 생성되었습니다!`);
+
+                    } catch (error) {
+                        console.error("Error creating classroom: ", error);
+                        alert("클래스 생성 중 오류가 발생했습니다.");
+                    }
+                } else {
+                    alert("클래스 이름이 유효하지 않습니다.");
+                }
             });
 
             // 사용자의 클래스 목록 실시간으로 보여주기
