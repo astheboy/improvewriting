@@ -707,7 +707,7 @@
                 let heightLeft = imgHeight;
                 let position = 0;
 
-                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdf = new window.jspdf.jsPDF('p', 'mm', 'a4');
 
                 // 3. (자르기 및 붙여넣기) 첫 페이지 추가
                 pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
