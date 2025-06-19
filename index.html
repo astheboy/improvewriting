@@ -144,6 +144,7 @@
             <span class="font-semibold text-gray-700">Google 계정으로 로그인</span>
         </button>
     </div>
+
     <div id="dashboard-container" class="w-full max-w-4xl bg-white rounded-2xl shadow-xl p-8 space-y-6 hidden">
         <div class="flex justify-between items-center border-b pb-4">
             <div>
@@ -154,20 +155,25 @@
                 class="bg-gray-200 hover:bg-gray-300 text-sm text-gray-700 font-bold py-2 px-4 rounded-lg">로그아웃</button>
         </div>
 
-        <div>
-            <button id="create-class-btn"
-                class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md">
-                + 새 클래스 만들기
-            </button>
+        <div class="p-4 bg-gray-50 rounded-lg border">
+            <h3 class="text-lg font-bold text-gray-700 mb-2">새 클래스 만들기</h3>
+            <div class="flex gap-2">
+                <input type="text" id="new-class-name-input" placeholder="클래스 이름을 입력하세요"
+                    class="flex-grow p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500">
+                <button id="add-class-btn"
+                    class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-lg transition-colors">
+                    추가
+                </button>
+            </div>
         </div>
 
         <div>
             <h3 class="text-xl font-bold text-gray-700 mb-4">내 클래스 목록</h3>
             <div id="classroom-list" class="space-y-3">
-                <p class="text-gray-500 text-center py-4">아직 생성된 클래스가 없습니다.</p>
             </div>
         </div>
     </div>
+
     <div id="export-content"
         class="w-full max-w-5xl bg-white rounded-2xl shadow-xl p-6 md:p-8 space-y-6 relative hidden">
 
@@ -298,6 +304,8 @@
         const dashboardContainer = document.getElementById('dashboard-container');
         const dashboardWelcome = document.getElementById('dashboard-welcome');
         const logoutBtn = document.getElementById('logout-btn');
+        const newClassNameInput = document.getElementById('new-class-name-input');
+        const addClassBtn = document.getElementById('add-class-btn');
         const createClassBtn = document.getElementById('create-class-btn');
         const classroomList = document.getElementById('classroom-list');
 
@@ -585,46 +593,96 @@
             // 참고: 이 방식은 코드가 중복될 수 있는 아주 희박한 가능성이 있습니다.
             // 사용자가 매우 많은 서비스에서는 DB를 확인하여 중복을 피하는 로직이 필요합니다.
         };
-        // --- 대시보드 기능 함수 ---
-        const setupDashboard = (user) => {
-            dashboardWelcome.textContent = `${user.displayName}님, 환영합니다.`;
 
-            // 로그아웃 버튼 이벤트
-            logoutBtn.addEventListener('click', () => signOut(auth));
-
-            // --- [수정됨] 새 클래스 만들기 버튼 이벤트 ---
-            createClassBtn.addEventListener('click', async () => {
-                const className = prompt("새 클래스의 이름을 입력해주세요:", "예: 6학년 창의적 글쓰기");
-
-                if (className && className.trim() !== "") {
-                    try {
-                        const joinCode = generateJoinCode();
-
-                        // Firestore 'classrooms' 컬렉션에 새 문서 추가
-                        await addDoc(collection(db, "classrooms"), {
-                            className: className.trim(),
-                            teacherId: user.uid, // 현재 로그인한 교사의 ID
-                            joinCode: joinCode,
-                            createdAt: serverTimestamp()
-                        });
-
-                        alert(`'${className}' 클래스가 생성되었습니다!`);
-
-                    } catch (error) {
-                        console.error("Error creating classroom: ", error);
-                        alert("클래스 생성 중 오류가 발생했습니다.");
-                    }
-                } else {
-                    alert("클래스 이름이 유효하지 않습니다.");
+        // --- [신규] 클래스 삭제 함수 ---
+        const deleteClassroom = async (classId) => {
+            if (confirm("정말로 이 클래스를 삭제하시겠습니까? 관련된 모든 데이터가 사라지며, 되돌릴 수 없습니다.")) {
+                try {
+                    // TODO: Firestore의 하위 컬렉션(sentences, words 등)은 자동으로 삭제되지 않습니다.
+                    // 향후 Cloud Function을 사용하여 관련 데이터를 모두 삭제하는 기능 추가를 권장합니다.
+                    await deleteDoc(doc(db, "classrooms", classId));
+                    alert("클래스가 삭제되었습니다.");
+                } catch (error) {
+                    console.error("Error deleting classroom: ", error);
+                    alert("클래스 삭제 중 오류가 발생했습니다.");
                 }
-            });
+            }
+        };
 
-            // 사용자의 클래스 목록 실시간으로 보여주기
+
+        // // --- 대시보드 기능 함수 ---
+        // const setupDashboard = (user) => {
+        //     dashboardWelcome.textContent = `${user.displayName}님, 환영합니다.`;
+
+        //     // 로그아웃 버튼 이벤트
+        //     logoutBtn.addEventListener('click', () => signOut(auth));
+
+        //     // --- [수정됨] 새 클래스 만들기 버튼 이벤트 ---
+        //     createClassBtn.addEventListener('click', async () => {
+        //         const className = prompt("새 클래스의 이름을 입력해주세요:", "예: 6학년 창의적 글쓰기");
+
+        //         if (className && className.trim() !== "") {
+        //             try {
+        //                 const joinCode = generateJoinCode();
+
+        //                 // Firestore 'classrooms' 컬렉션에 새 문서 추가
+        //                 await addDoc(collection(db, "classrooms"), {
+        //                     className: className.trim(),
+        //                     teacherId: user.uid, // 현재 로그인한 교사의 ID
+        //                     joinCode: joinCode,
+        //                     createdAt: serverTimestamp()
+        //                 });
+
+        //                 alert(`'${className}' 클래스가 생성되었습니다!`);
+
+        //             } catch (error) {
+        //                 console.error("Error creating classroom: ", error);
+        //                 alert("클래스 생성 중 오류가 발생했습니다.");
+        //             }
+        //         } else {
+        //             alert("클래스 이름이 유효하지 않습니다.");
+        //         }
+        //     });
+
+        //     // 사용자의 클래스 목록 실시간으로 보여주기
+        //     displayUserClasses(user.uid);
+        // };
+
+        // const displayUserClasses = (userId) => {
+        //     const q = query(collection(db, "classrooms"), where("teacherId", "==", userId));
+
+        //     onSnapshot(q, (snapshot) => {
+        //         if (snapshot.empty) {
+        //             classroomList.innerHTML = '<p class="text-gray-500 text-center py-4">아직 생성된 클래스가 없습니다.</p>';
+        //             return;
+        //         }
+
+        //         classroomList.innerHTML = ''; // 목록 초기화
+        //         snapshot.forEach(doc => {
+        //             const classroom = doc.data();
+        //             const classEl = document.createElement('div');
+        //             classEl.className = 'flex justify-between items-center bg-gray-50 p-4 rounded-lg border';
+        //             classEl.innerHTML = `
+        //             <div>
+        //                 <h4 class="font-bold text-lg">${classroom.className}</h4>
+        //                 <p class="text-sm text-gray-500">참여 코드: <span class="font-mono bg-gray-200 px-2 py-1 rounded">${classroom.joinCode}</span></p>
+        //             </div>
+        //             <button class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">입장</button>
+        //         `;
+        //             // TODO: '입장' 버튼 클릭 시 해당 클래스의 활동 페이지로 이동하는 로직 추가
+        //             classroomList.appendChild(classEl);
+        //         });
+        //     });
+        // };
+
+        // --- [수정됨] 대시보드 UI 업데이트 및 클래스 목록 표시 ---
+        const setupDashboardUI = (user) => {
+            dashboardWelcome.textContent = `${user.displayName}님, 환영합니다.`;
             displayUserClasses(user.uid);
         };
 
         const displayUserClasses = (userId) => {
-            const q = query(collection(db, "classrooms"), where("teacherId", "==", userId));
+            const q = query(collection(db, "classrooms"), where("teacherId", "==", userId), where("createdAt", "!=", null));
 
             onSnapshot(q, (snapshot) => {
                 if (snapshot.empty) {
@@ -632,9 +690,10 @@
                     return;
                 }
 
-                classroomList.innerHTML = ''; // 목록 초기화
-                snapshot.forEach(doc => {
+                classroomList.innerHTML = '';
+                snapshot.docs.sort((a, b) => b.data().createdAt - a.data().createdAt).forEach(doc => {
                     const classroom = doc.data();
+                    const classId = doc.id;
                     const classEl = document.createElement('div');
                     classEl.className = 'flex justify-between items-center bg-gray-50 p-4 rounded-lg border';
                     classEl.innerHTML = `
@@ -642,13 +701,16 @@
                         <h4 class="font-bold text-lg">${classroom.className}</h4>
                         <p class="text-sm text-gray-500">참여 코드: <span class="font-mono bg-gray-200 px-2 py-1 rounded">${classroom.joinCode}</span></p>
                     </div>
-                    <button class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">입장</button>
+                    <div class="flex gap-2">
+                        <button class="enter-class-btn bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700" data-id="${classId}">입장</button>
+                        <button class="delete-class-btn bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700" data-id="${classId}">삭제</button>
+                    </div>
                 `;
-                    // TODO: '입장' 버튼 클릭 시 해당 클래스의 활동 페이지로 이동하는 로직 추가
                     classroomList.appendChild(classEl);
                 });
             });
         };
+
         const main = async () => {
             try {
                 initializeApp(firebaseConfig);
@@ -665,7 +727,7 @@
                     // 사용자가 로그인한 경우
                     currentUser = user;
                     await saveUserToFirestore(user); // Firestore에 사용자 정보 저장
-                    setupDashboard(user); // 대시보드 설정
+                    setupDashboardUI(user); // 대시보드 UI 업데이트
                     showScreen('dashboard-container'); // 대시보드 화면 보여주기
                     const urlParams = new URLSearchParams(window.location.search);
                     isTeacher = urlParams.get('teacher') === 'true';
@@ -720,6 +782,41 @@
                 } catch (error) {
                     console.error("Google sign-in error", error);
                     showToast("구글 로그인 중 오류가 발생했습니다.", true);
+                }
+            });
+            logoutBtn.addEventListener('click', () => signOut(auth));
+            addClassBtn.addEventListener('click', async () => {
+                const className = newClassNameInput.value.trim();
+                if (className && currentUser) {
+                    try {
+                        await addDoc(collection(db, "classrooms"), {
+                            className: className,
+                            teacherId: currentUser.uid,
+                            joinCode: generateJoinCode(),
+                            createdAt: serverTimestamp()
+                        });
+                        newClassNameInput.value = ''; // 입력창 비우기
+                    } catch (error) {
+                        console.error("Error creating classroom: ", error);
+                        alert("클래스 생성 중 오류가 발생했습니다.");
+                    }
+                } else {
+                    alert("클래스 이름을 입력해주세요.");
+                }
+            });
+
+            // --- [신규] 이벤트 위임을 사용한 클래스 목록 이벤트 처리 ---
+            classroomList.addEventListener('click', (e) => {
+                const target = e.target;
+                // 삭제 버튼 클릭 시
+                if (target.classList.contains('delete-class-btn')) {
+                    const classId = target.dataset.id;
+                    deleteClassroom(classId);
+                }
+                // 입장 버튼 클릭 시 (다음 단계에서 구현)
+                if (target.classList.contains('enter-class-btn')) {
+                    const classId = target.dataset.id;
+                    alert(`클래스 ${classId}에 입장합니다. (다음 단계 구현)`);
                 }
             });
         };
