@@ -4,10 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI 문장 만들기 (수업용)</title>
-    <!-- Tailwind CSS CDN for styling -->
+    <title>상상하며 글쓰기</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Google Fonts for better typography -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700&display=swap" rel="stylesheet">
@@ -31,10 +29,6 @@
             border-radius: 4px;
         }
 
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-            background: #555;
-        }
-
         .hidden {
             display: none;
         }
@@ -46,13 +40,6 @@
             border-radius: 9999px;
             font-size: 0.875rem;
             font-weight: 500;
-            transition: all 0.2s ease-in-out;
-            cursor: pointer;
-        }
-
-        .keyword-tag:hover {
-            background-color: #c7d2fe;
-            transform: translateY(-2px);
         }
 
         .toast {
@@ -96,7 +83,6 @@
             border-color: #ef4444;
         }
 
-        /* ✨ 1.4: 대기 화면 스피너 스타일 */
         .spinner {
             border: 4px solid rgba(0, 0, 0, 0.1);
             width: 36px;
@@ -115,21 +101,77 @@
                 transform: rotate(360deg);
             }
         }
+
+        .control-btn {
+            padding: 0.75rem 1rem;
+            color: white;
+            font-weight: bold;
+            border-radius: 0.5rem;
+            transition: background-color 0.2s;
+        }
+
+        .control-btn:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
     </style>
     <link rel="icon"
         href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>✏️</text></svg>">
 </head>
 
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
-    <div id="waiting-overlay" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
-        <h1 class="text-4xl font-bold text-gray-800">선생님을 기다리고 있어요...</h1>
-        <p class="text-lg text-gray-600 mt-4">수업이 곧 시작됩니다!</p>
-        <div class="spinner mt-8"></div>
+
+    <div id="login-container" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
+        <h1 class="text-4xl font-bold text-gray-800">상상하며 글쓰기</h1>
+        <p class="text-lg text-gray-600 mt-4">수업을 시작하려면 구글 계정으로 로그인해주세요.</p>
+        <button id="google-login-btn"
+            class="mt-8 bg-white py-2 px-6 border border-gray-300 rounded-full shadow-md hover:shadow-lg transition-shadow flex items-center gap-3">
+            <svg class="w-6 h-6" viewBox="0 0 48 48">
+                <path fill="#EA4335"
+                    d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z">
+                </path>
+                <path fill="#4285F4"
+                    d="M46.98 24.55c0-1.57-.15-3.09-.42-4.55H24v8.51h12.8c-.57 2.84-2.3 5.44-4.92 7.18l7.98 6.19C45.27 38.91 48 32.16 48 24c0-.73-.04-1.45-.11-2.16l-1.01.71z">
+                </path>
+                <path fill="#FBBC05"
+                    d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z">
+                </path>
+                <path fill="#34A853"
+                    d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.98-6.19c-2.11 1.45-4.82 2.3-7.91 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z">
+                </path>
+                <path fill="none" d="M0 0h48v48H0z"></path>
+            </svg>
+            <span class="font-semibold text-gray-700">Google 계정으로 로그인</span>
+        </button>
     </div>
+    <div id="dashboard-container" class="w-full max-w-4xl bg-white rounded-2xl shadow-xl p-8 space-y-6 hidden">
+        <div class="flex justify-between items-center border-b pb-4">
+            <div>
+                <h2 id="dashboard-welcome" class="text-3xl font-bold text-gray-800">대시보드</h2>
+                <p class="text-gray-600">나의 클래스를 만들고 관리하세요.</p>
+            </div>
+            <button id="logout-btn"
+                class="bg-gray-200 hover:bg-gray-300 text-sm text-gray-700 font-bold py-2 px-4 rounded-lg">로그아웃</button>
+        </div>
 
-    <div id="export-content" class="w-full max-w-5xl bg-white rounded-2xl shadow-xl p-6 md:p-8 space-y-6 relative">
+        <div>
+            <button id="create-class-btn"
+                class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md">
+                + 새 클래스 만들기
+            </button>
+        </div>
 
-        <div class="absolute top-4 right-4">
+        <div>
+            <h3 class="text-xl font-bold text-gray-700 mb-4">내 클래스 목록</h3>
+            <div id="classroom-list" class="space-y-3">
+                <p class="text-gray-500 text-center py-4">아직 생성된 클래스가 없습니다.</p>
+            </div>
+        </div>
+    </div>
+    <div id="export-content"
+        class="w-full max-w-5xl bg-white rounded-2xl shadow-xl p-6 md:p-8 space-y-6 relative hidden">
+
+        <div class="absolute top-4 right-4 print-hide">
             <button id="teacher-mode-btn"
                 class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-bold py-2 px-3 rounded-lg transition-colors">
                 교사 모드
@@ -137,88 +179,55 @@
         </div>
 
         <header class="text-center pt-8">
-            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">AI 문장 만들기</h1>
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">상상하며 글쓰기</h1>
             <p class="text-gray-600 mt-2">모두가 같은 사진을 보고 있습니다. 친구들의 글에 공감하며 아이디어를 나눠보세요!</p>
         </header>
 
-        <!-- Image Display -->
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="image-container">
-            <div class="bg-gray-200 aspect-ratio-4/3 rounded-lg flex items-center justify-center p-4 text-center">
-                <p class="text-gray-500">사진을 기다리고 있습니다...</p>
-            </div>
-            <div class="bg-gray-200 aspect-ratio-4/3 rounded-lg flex items-center justify-center p-4 text-center">
-                <p class="text-gray-500">여기에 사진이 표시됩니다.</p>
-            </div>
-        </div>
-
-        <!-- Teacher's Controls -->
-        <div id="teacher-controls" class="text-center hidden space-y-3 sm:space-y-0 sm:space-x-3">
-            <!-- <div class="flex flex-wrap justify-center gap-3">
-                <button id="refresh-button"
-                    class="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300 shadow-lg">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 inline-block mr-2" viewBox="0 0 20 20"
-                        fill="currentColor">
-                        <path fill-rule="evenodd"
-                            d="M4 2a1 1 0 011 1v2.101a7.002 7.002 0 0111.899 2.139l.868.868a1 1 0 01-1.414 1.414l-.868-.868A5.002 5.002 0 005.999 7H5a1 1 0 01-1-1V3a1 1 0 011-1zm12 1a1 1 0 011 1v3h.001a5.002 5.002 0 00-9.298 3.766l.868.868a1 1 0 11-1.414 1.414l-.868-.868A7.002 7.002 0 0115 6.101V4a1 1 0 011-1z"
-                            clip-rule="evenodd" />
-                    </svg>
-                    새로운 사진 불러오기(글 초기화)
-                </button>
-                <button id="gemini-button"
-                    class="w-full sm:w-auto bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-bold py-3 px-6 rounded-lg transition-all duration-300 shadow-lg">
-                    ✨ AI로 영감 얻기
-                </button>
-                <p>&nbsp;</p>
-            </div> -->
-            <h2 class="text-xl font-bold text-yellow-800">교사 모드</h2>
+        <div id="teacher-controls"
+            class="hidden p-4 bg-yellow-100 border-l-4 border-yellow-500 rounded-lg space-y-4 print-hide">
+            <h2 class="text-xl font-bold text-yellow-800 text-left">교사 제어판</h2>
             <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                <button id="start-activity-btn" class="control-btn bg-blue-600 hover:bg-blue-700">1. 활동 시작 (사진
-                    불러오기)</button>
+                <button id="start-activity-btn" class="control-btn bg-blue-600 hover:bg-blue-700">1. 활동 시작</button>
                 <button id="activate-word-input-btn" class="control-btn bg-green-600 hover:bg-green-700" disabled>2. 낱말
-                    입력 시작</button>
+                    입력</button>
                 <button id="activate-sentence-input-btn" class="control-btn bg-purple-600 hover:bg-purple-700"
-                    disabled>3. 문장 쓰기 시작</button>
+                    disabled>3. 문장 쓰기</button>
                 <button id="get-ai-inspiration-btn" class="control-btn bg-indigo-500 hover:bg-indigo-600">AI 영감
                     얻기</button>
             </div>
-
             <div class="pt-4 border-t mt-4 flex flex-wrap justify-center gap-3">
                 <button id="export-pdf-btn"
                     class="flex-grow sm:flex-grow-0 bg-red-600 hover:bg-red-700 text-white font-bold py-2 px-5 rounded-lg transition-colors">PDF로
                     저장</button>
                 <button id="export-csv-btn"
-                    class="flex-grow sm:flex-grow-0 bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-5 rounded-lg transition-colors">엑셀(CSV)로
+                    class="flex-grow sm:flex-grow-0 bg-green-700 hover:bg-green-800 text-white font-bold py-2 px-5 rounded-lg transition-colors">엑셀(CSV)로
                     저장</button>
             </div>
         </div>
 
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6" id="image-container"></div>
         <div id="ai-helper" class="p-4 bg-purple-50 rounded-lg border-l-4 border-purple-400 hidden">
             <h3 class="text-lg font-bold text-purple-800 mb-3">✨ AI 도우미가 제안하는 아이디어</h3>
-            <div id="ai-output">
-                <p class="text-gray-600">교사 모드에서 'AI로 영감 얻기' 버튼을 눌러보세요.</p>
-            </div>
+            <div id="ai-output"></div>
         </div>
 
         <div id="word-activity-section" class="hidden">
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+            <div class="space-y-8 mt-6">
                 <div class="space-y-4">
                     <h2 class="text-2xl font-bold text-gray-700 border-b pb-2">💡 생각 열기</h2>
                     <form id="word-form" class="space-y-4 print-hide">
                         <textarea id="word-input"
-                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 transition"
+                            class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 transition"
                             rows="2" placeholder="사진을 보고 떠오르는 낱말을 '하나씩' 입력해주세요." required></textarea>
-                        <div>
-                            <button type="submit"
-                                class="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300 shadow-md">낱말
-                                제출하기</button>
-                        </div>
+                        <div><button type="submit"
+                                class="w-full sm:w-auto bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md">낱말
+                                제출하기</button></div>
                     </form>
                 </div>
                 <div>
                     <h2 class="text-2xl font-bold text-gray-700 border-b pb-2">🌈 우리 반 생각 구름</h2>
                     <div id="word-cloud-feed"
                         class="p-4 bg-gray-50 rounded-lg mt-4 h-48 overflow-y-auto custom-scrollbar flex flex-wrap gap-3 items-start">
-                        <p class="text-gray-500 text-center w-full">아직 제출된 낱말이 없습니다.</p>
                     </div>
                 </div>
             </div>
@@ -226,478 +235,521 @@
 
         <div id="sentence-activity-section" class="hidden">
             <form id="sentence-form" class="space-y-4 print-hide mt-6">
+                <h2 class="text-2xl font-bold text-gray-700 border-b pb-2">✍️ 문장 쓰기</h2>
                 <textarea id="sentence-input"
-                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition"
-                    rows="3" placeholder="예) 밤하늘의 고래가 신비로운 숲을 헤엄칩니다." required></textarea>
+                    class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
+                    rows="3" placeholder="생각 구름을 보며 떠오르는 문장을 만들어보세요." required></textarea>
                 <div class="flex flex-col sm:flex-row gap-3">
                     <input type="text" id="author-name-input" placeholder="이름을 입력하세요"
                         class="w-full sm:flex-grow p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 transition"
                         required>
                 </div>
-                <div>
-                    <button type="submit"
-                        class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-300 shadow-md">문장
-                        제출하기</button>
-                </div>
+                <div><button type="submit"
+                        class="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md">문장
+                        제출하기</button></div>
             </form>
         </div>
+
         <div>
             <h2 class="text-2xl font-bold text-gray-700 mb-4 border-b pb-2">실시간 문장 피드</h2>
-            <div id="sentences-feed" class="space-y-3 h-64 overflow-y-auto custom-scrollbar p-2 bg-gray-50 rounded-lg">
+            <div id="sentences-feed" class="space-y-3 h-96 overflow-y-auto custom-scrollbar p-2 bg-gray-50 rounded-lg">
             </div>
         </div>
 
-        <div id="user-info" class="text-center text-xs text-gray-400 pt-4">로딩 중...</div>
+        <div id="user-info" class="text-center text-sm text-gray-500 pt-4 flex justify-center items-center gap-4">
+        </div>
+    </div>
 
-        <div id="password-modal"
-            class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-            <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
-                <h3 class="text-xl font-bold mb-4">교사 모드</h3>
-                <p class="text-gray-600 mb-4">계속하려면 비밀번호를 입력하세요.</p>
-                <input type="password" id="password-input" class="w-full p-2 border border-gray-300 rounded-md mb-4"
-                    placeholder="비밀번호">
-                <div id="password-error" class="text-red-500 text-sm mb-4 hidden">비밀번호가 틀렸습니다.</div>
-                <div class="flex justify-end space-x-3">
-                    <button id="cancel-password-btn"
-                        class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">취소</button>
-                    <button id="submit-password-btn"
-                        class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">확인</button>
-                </div>
+    <div id="password-modal"
+        class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
+            <h3 class="text-xl font-bold mb-4">교사 모드</h3>
+            <p class="text-gray-600 mb-4">계속하려면 비밀번호를 입력하세요.</p>
+            <input type="password" id="password-input" class="w-full p-2 border border-gray-300 rounded-md mb-4"
+                placeholder="비밀번호">
+            <div id="password-error" class="text-red-500 text-sm mb-4 hidden"></div>
+            <div class="flex justify-end space-x-3">
+                <button id="cancel-password-btn"
+                    class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">취소</button>
+                <button id="submit-password-btn"
+                    class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">확인</button>
             </div>
         </div>
+    </div>
 
-        <div id="toast-notification" class="toast"></div>
+    <div id="toast-notification" class="toast"></div>
 
-        <script type="module">
-            import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
-            import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-            import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, getDocs, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, getDocs, deleteDoc, writeBatch, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
-            // --- 1. CONFIGURATION ---
-            const firebaseConfig = {
-                apiKey: "AIzaSyB6AzqMt0CByFHu5_YQxltGAK3n8jW_Bmo",
-                authDomain: "imagine-sentences-class.firebaseapp.com",
-                projectId: "imagine-sentences-class",
-                storageBucket: "imagine-sentences-class.firebasestorage.app",
-                messagingSenderId: "863169353628",
-                appId: "1:863169353628:web:b00aa7caedee1090f99a59",
-                measurementId: "G-EQVSNH407N"
-            };
-            const appId = 'my-classroom-2025-final';
+        const firebaseConfig = {
+            apiKey: "AIzaSyB6AzqMt0CByFHu5_YQxltGAK3n8jW_Bmo",
+            authDomain: "imagine-sentences-class.firebaseapp.com",
+            projectId: "imagine-sentences-class",
+            storageBucket: "imagine-sentences-class.firebasestorage.app",
+            messagingSenderId: "863169353628",
+            appId: "1:863169353628:web:b00aa7caedee1090f99a59",
+            measurementId: "G-EQVSNH407N"
+        };
+        const loginContainer = document.getElementById('login-container');
+        const googleLoginBtn = document.getElementById('google-login-btn');
+        const dashboardContainer = document.getElementById('dashboard-container');
+        const dashboardWelcome = document.getElementById('dashboard-welcome');
+        const logoutBtn = document.getElementById('logout-btn');
+        const createClassBtn = document.getElementById('create-class-btn');
+        const classroomList = document.getElementById('classroom-list');
 
-            // --- 2. DOM ELEMENT REFERENCES ---
-            // Page Sections
-            const waitingOverlay = document.getElementById('waiting-overlay');
-            const imageContainer = document.getElementById('image-container');
-            const wordActivitySection = document.getElementById('word-activity-section');
-            const sentenceActivitySection = document.getElementById('sentence-activity-section');
-            const sentencesFeed = document.getElementById('sentences-feed');
-            const exportContent = document.getElementById('export-content');
-            const userInfoDisplay = document.getElementById('user-info');
+        const appId = 'my-classroom-2025-final';
 
-            // Forms & Inputs
-            const wordForm = document.getElementById('word-form');
-            const wordInput = document.getElementById('word-input');
-            const sentenceForm = document.getElementById('sentence-form');
-            const sentenceInput = document.getElementById('sentence-input');
-            const authorNameInput = document.getElementById('author-name-input');
-            const wordCloudFeed = document.getElementById('word-cloud-feed');
 
-            // Buttons
-            const teacherModeBtn = document.getElementById('teacher-mode-btn'); // For students to click
-            const exportPdfBtn = document.getElementById('export-pdf-btn');
-            const exportCsvBtn = document.getElementById('export-csv-btn');
+        const waitingOverlay = document.getElementById('waiting-overlay'), imageContainer = document.getElementById('image-container'), wordActivitySection = document.getElementById('word-activity-section'), sentenceActivitySection = document.getElementById('sentence-activity-section'), sentencesFeed = document.getElementById('sentences-feed'), exportContent = document.getElementById('export-content'), userInfoDisplay = document.getElementById('user-info'), wordForm = document.getElementById('word-form'), wordInput = document.getElementById('word-input'), sentenceForm = document.getElementById('sentence-form'), sentenceInput = document.getElementById('sentence-input'), authorNameInput = document.getElementById('author-name-input'), wordCloudFeed = document.getElementById('word-cloud-feed'), teacherModeBtn = document.getElementById('teacher-mode-btn'), exportPdfBtn = document.getElementById('export-pdf-btn'), exportCsvBtn = document.getElementById('export-csv-btn'), teacherControls = document.getElementById('teacher-controls'), startActivityBtn = document.getElementById('start-activity-btn'), activateWordInputBtn = document.getElementById('activate-word-input-btn'), activateSentenceInputBtn = document.getElementById('activate-sentence-input-btn'), getAiInspirationBtn = document.getElementById('get-ai-inspiration-btn'), aiHelperDiv = document.getElementById('ai-helper'), aiOutputDiv = document.getElementById('ai-output'), passwordModal = document.getElementById('password-modal'), passwordInput = document.getElementById('password-input'), passwordError = document.getElementById('password-error'), cancelPasswordBtn = document.getElementById('cancel-password-btn'), submitPasswordBtn = document.getElementById('submit-password-btn'), toastNotification = document.getElementById('toast-notification');
+        let db, auth, userId, currentUser, isTeacher = false;
 
-            // Teacher Controls
-            const teacherControls = document.getElementById('teacher-controls');
-            const startActivityBtn = document.getElementById('start-activity-btn');
-            const activateWordInputBtn = document.getElementById('activate-word-input-btn');
-            const activateSentenceInputBtn = document.getElementById('activate-sentence-input-btn');
-            const getAiInspirationBtn = document.getElementById('get-ai-inspiration-btn');
+        const showToast = (message, isError = false) => { toastNotification.textContent = message; toastNotification.style.backgroundColor = isError ? '#ef4444' : '#22c55e'; toastNotification.classList.add('show'); setTimeout(() => toastNotification.classList.remove('show'), 3000); };
+        const openPasswordModal = () => { passwordInput.value = ''; passwordError.classList.add('hidden'); passwordModal.classList.remove('hidden'); passwordInput.focus(); };
+        const closePasswordModal = () => passwordModal.classList.add('hidden');
 
-            // AI Helper
-            const aiHelperDiv = document.getElementById('ai-helper');
-            const aiOutputDiv = document.getElementById('ai-output');
+        const checkPassword = async () => {
+            const enteredPassword = passwordInput.value;
+            if (!enteredPassword) { passwordError.textContent = '비밀번호를 입력하세요.'; passwordError.classList.remove('hidden'); return; }
+            try {
+                const response = await fetch('/.netlify/functions/verifyPassword', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: enteredPassword }), });
+                const result = await response.json();
+                if (response.ok && result.success) {
+                    teacherControls.classList.remove('hidden'); teacherModeBtn.classList.add('hidden'); closePasswordModal(); showToast("교사 모드가 활성화되었습니다.");
+                } else { passwordError.textContent = '비밀번호가 틀렸습니다.'; passwordError.classList.remove('hidden'); }
+            } catch (error) { console.error('Password verification error:', error); passwordError.textContent = '확인 중 오류가 발생했습니다.'; passwordError.classList.remove('hidden'); }
+        };
 
-            // Password Modal
-            const passwordModal = document.getElementById('password-modal');
-            const passwordInput = document.getElementById('password-input');
-            const passwordError = document.getElementById('password-error');
-            const cancelPasswordBtn = document.getElementById('cancel-password-btn');
-            const submitPasswordBtn = document.getElementById('submit-password-btn');
+        const updatePhase = async (phase) => { const appStateRef = doc(db, `/artifacts/${appId}/public/data/appState/current`); await setDoc(appStateRef, { currentPhase: phase, updatedAt: serverTimestamp() }); };
 
-            // Notifications
-            const toastNotification = document.getElementById('toast-notification');
+        const fetchAndSetNewSharedImages = async () => {
+            if (!isTeacher) return;
+            startActivityBtn.disabled = true; startActivityBtn.textContent = '로딩 중...';
+            try {
+                await updatePhase('waiting');
+                const collectionsToClear = ['sentences', 'words'];
+                const deletePromises = collectionsToClear.map(colName => getDocs(collection(db, `/artifacts/${appId}/public/data/${colName}`)).then(snapshot => snapshot.docs.map(d => deleteDoc(d.ref))));
+                await Promise.all((await Promise.all(deletePromises)).flat());
+                await setDoc(doc(db, `/artifacts/${appId}/public/data/aiHelper`, "current"), { content: null });
+                const fetchRandomImage = async (query) => { const response = await fetch(`/.netlify/functions/fetchImage?query=${query}`); if (!response.ok) throw new Error(`API error`); return await response.json(); };
+                const [imageData1, imageData2] = await Promise.all([fetchRandomImage('inspiration'), fetchRandomImage('creativity')]);
+                if (imageData1 && imageData2) {
+                    await setDoc(doc(db, `/artifacts/${appId}/public/data/sharedImages`, "current"), { url1: imageData1.urls.regular, alt1: imageData1.alt_description, url2: imageData2.urls.regular, alt2: imageData2.alt_description, updatedAt: serverTimestamp() });
+                    await updatePhase('images_only');
+                    showToast("새로운 활동이 시작되었습니다!");
+                } else { showToast("이미지 로딩 실패", true); }
+            } catch (error) {
+                console.error("Error starting activity:", error); showToast("초기화 중 오류 발생", true);
+            } finally { startActivityBtn.disabled = false; startActivityBtn.textContent = '1. 활동 시작'; }
+        };
 
-            // Global Variables
-            let db, auth, userId, isTeacher = false;
+        const getAiInspiration = async () => {
+            if (!isTeacher) return;
+            getAiInspirationBtn.disabled = true; getAiInspirationBtn.textContent = 'AI 생각 중...';
+            aiHelperDiv.classList.remove('hidden'); aiOutputDiv.innerHTML = '<p class="text-gray-600">AI에게 물어보고 있습니다...</p>';
+            try {
+                const imageDoc = await getDoc(doc(db, `/artifacts/${appId}/public/data/sharedImages`, "current"));
+                if (!imageDoc.exists()) throw new Error("먼저 사진을 불러와주세요.");
+                const { alt1, alt2 } = imageDoc.data();
+                const response = await fetch('/.netlify/functions/getAiInspiration', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ alt1, alt2 }) });
+                if (!response.ok) throw new Error(`AI 함수 호출 실패`);
+                const result = await response.json();
+                const aiResponseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
+                if (aiResponseText) {
+                    await setDoc(doc(db, `/artifacts/${appId}/public/data/aiHelper`, "current"), { content: aiResponseText, updatedAt: serverTimestamp() });
+                } else { throw new Error(result.error || "AI로부터 유효한 응답을 받지 못했습니다."); }
+            } catch (error) {
+                console.error("AI Inspiration Error:", error); aiOutputDiv.innerHTML = `<p class="text-red-500">오류: ${error.message}</p>`;
+            } finally { getAiInspirationBtn.disabled = false; getAiInspirationBtn.textContent = 'AI 영감 얻기'; }
+        };
 
-            // --- 3. CORE FUNCTIONS ---
+        const listenForAppState = () => {
+            const appStateRef = doc(db, `/artifacts/${appId}/public/data/appState/current`);
+            onSnapshot(appStateRef, (docSnapshot) => {
+                const phase = docSnapshot.exists() ? docSnapshot.data().currentPhase : 'waiting';
+                imageContainer.classList.add('hidden'); wordActivitySection.classList.add('hidden'); sentenceActivitySection.classList.add('hidden');
+                if (isTeacher) { activateWordInputBtn.disabled = true; activateSentenceInputBtn.disabled = true; }
+                switch (phase) {
+                    case 'images_only': imageContainer.classList.remove('hidden'); if (isTeacher) activateWordInputBtn.disabled = false; break;
+                    case 'word_input_active': imageContainer.classList.remove('hidden'); wordActivitySection.classList.remove('hidden'); if (isTeacher) activateSentenceInputBtn.disabled = false; break;
+                    case 'sentence_input_active': imageContainer.classList.remove('hidden'); wordActivitySection.classList.remove('hidden'); sentenceActivitySection.classList.remove('hidden'); break;
+                    // case 'waiting': default: if (!isTeacher) { waitingOverlay.classList.remove('hidden'); } break;
+                }
+            });
+        };
 
-            function showToast(message, isError = false) {
-                toastNotification.textContent = message;
-                toastNotification.style.backgroundColor = isError ? '#ef4444' : '#22c55e';
-                toastNotification.classList.add('show');
-                setTimeout(() => { toastNotification.classList.remove('show'); }, 3000);
-            }
+        const listenForSharedImages = () => {
+            const imageDocRef = doc(db, `/artifacts/${appId}/public/data/sharedImages`, "current");
+            onSnapshot(imageDocRef, (doc) => {
+                imageContainer.innerHTML = '';
+                if (doc.exists()) {
+                    const data = doc.data();
+                    const img1 = document.createElement('img'); img1.src = data.url1; img1.alt = data.alt1 || 'Shared image 1'; img1.className = 'w-full h-full object-cover rounded-lg shadow-md';
+                    const img2 = document.createElement('img'); img2.src = data.url2; img2.alt = data.alt2 || 'Shared image 2'; img2.className = 'w-full h-full object-cover rounded-lg shadow-md';
+                    imageContainer.appendChild(img1); imageContainer.appendChild(img2);
+                } else { imageContainer.innerHTML = `<div class="bg-gray-200 aspect-ratio-4/3 rounded-lg flex items-center justify-center p-4 text-center"><p class="text-gray-500">선생님이 활동을 시작하면 사진이 나타납니다.</p></div><div class="bg-gray-200 aspect-ratio-4/3 rounded-lg flex items-center justify-center p-4 text-center"><p class="text-gray-500">여기에 사진이 표시됩니다.</p></div>`; }
+            });
+        };
 
-            function openPasswordModal() {
-                passwordInput.value = '';
-                passwordError.classList.add('hidden');
-                passwordModal.classList.remove('hidden');
-                passwordInput.focus();
-            }
+        // ----- START: ADDED FUNCTION -----
+        // AI 도우미 데이터를 실시간으로 감지하고 UI에 반영하는 함수
+        const listenForAiHelper = () => {
+            const aiHelperDocRef = doc(db, `/artifacts/${appId}/public/data/aiHelper/current`);
+            onSnapshot(aiHelperDocRef, (doc) => {
+                if (doc.exists() && doc.data().content) {
+                    let content = doc.data().content;
+                    let htmlOutput = '';
 
-            function closePasswordModal() {
-                passwordModal.classList.add('hidden');
-            }
+                    try {
+                        // AI 응답에 포함될 수 있는 마크다운 코드 블록(```json ... ```)을 제거합니다.
+                        if (content.startsWith("```json")) {
+                            content = content.substring(7, content.length - 3).trim();
+                        } else if (content.startsWith("```")) {
+                            content = content.substring(3, content.length - 3).trim();
+                        }
 
-            // --- 4. DATA HANDLING & FIRESTORE ---
+                        const aiData = JSON.parse(content);
 
-            async function checkPassword() {
-                const enteredPassword = passwordInput.value;
-                if (!enteredPassword) {
-                    passwordError.textContent = '비밀번호를 입력하세요.';
-                    passwordError.classList.remove('hidden');
+                        if (aiData.exampleSentence && aiData.theme1 && aiData.theme2) {
+                            htmlOutput += '<h4 class="text-md font-bold text-purple-700 mb-2">🔑 관련 키워드</h4>';
+                            htmlOutput += '<div class="flex flex-wrap gap-2">';
+
+                            const allKeywords = [...aiData.theme1, ...aiData.theme2];
+                            allKeywords.forEach(keyword => {
+                                htmlOutput += `<span class="keyword-tag">${keyword}</span>`;
+                            });
+                            htmlOutput += '</div>';
+                            htmlOutput += `
+                        <h4 class="text-md font-bold text-purple-700 mb-2">💡 AI 추천 문장</h4>
+                        <p class="mb-4 p-3 bg-white rounded-md shadow-sm">${aiData.exampleSentence}</p>
+                    `;
+                            aiOutputDiv.innerHTML = htmlOutput;
+                        } else {
+                            throw new Error("Invalid AI data structure.");
+                        }
+                    } catch (e) {
+                        console.error("Could not parse AI helper content, displaying as raw text:", e);
+                        // 오류 발생 시에도 원본 텍스트를 보여주어 어떤 내용이 왔는지 확인할 수 있도록 합니다.
+                        aiOutputDiv.innerHTML = `<p class="text-gray-700 whitespace-pre-wrap">${doc.data().content}</p>`;
+                    }
+
+                    aiHelperDiv.classList.remove('hidden');
+                } else {
+                    aiHelperDiv.classList.add('hidden');
+                }
+            });
+        };
+        // ----- END: ADDED FUNCTION -----
+
+        const listenForWords = () => { 
+            const wordsCol = collection(db, `/artifacts/${appId}/public/data/words`); 
+            onSnapshot(query(wordsCol), (snapshot) => { 
+                if (snapshot.empty) { 
+                    wordCloudFeed.innerHTML = '<p class="text-gray-500 text-center w-full">아직 제출된 낱말이 없습니다.</p>'; return; 
+                } 
+                wordCloudFeed.innerHTML = ''; 
+                const words = snapshot.docs.map(doc => doc.data().text); 
+                const wordCounts = words.reduce((acc, word) => { 
+                    acc[word] = (acc[word] || 0) + 1; 
+                    return acc; 
+                }, 
+                {}
+            ); 
+                const maxCount = Math.max(...Object.values(wordCounts)); 
+                for (const [word, count] of Object.entries(wordCounts)) { 
+                    const el = document.createElement('span'); 
+                    el.className = 'keyword-tag'; el.textContent = word; 
+                    const fontSize = 1 + (count / maxCount); 
+                    el.style.fontSize = `${Math.min(fontSize, 2)}rem`; 
+                    el.style.opacity = 0.6 + (count / maxCount) * 0.4; 
+                    wordCloudFeed.appendChild(el); 
+                } 
+            }); 
+        };
+        const listenForSentences = () => {
+            const sentencesCol = collection(db, `/artifacts/${appId}/public/data/sentences`);
+            onSnapshot(query(sentencesCol), (snapshot) => {
+                // 1. 스크롤 위치를 업데이트하기 전에, 현재 사용자가 스크롤을 맨 아래에 두었는지 확인합니다.
+                const scrollBuffer = 10; // 약간의 오차를 허용하기 위한 버퍼
+                const isScrolledToBottom = sentencesFeed.scrollHeight - sentencesFeed.clientHeight <= sentencesFeed.scrollTop + scrollBuffer;
+
+                if (snapshot.empty) {
+                    sentencesFeed.innerHTML = '<p class="text-gray-500 text-center">아직 제출된 문장이 없습니다.</p>';
                     return;
                 }
-                try {
-                    const response = await fetch('/.netlify/functions/verifyPassword', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ password: enteredPassword }),
-                    });
-                    const result = await response.json();
-                    if (response.ok && result.success) {
-                        teacherControls.classList.remove('hidden');
-                        teacherModeBtn.classList.add('hidden');
-                        closePasswordModal();
-                        showToast("교사 모드가 활성화되었습니다.");
-                    } else {
-                        passwordError.textContent = '비밀번호가 틀렸습니다.';
-                        passwordError.classList.remove('hidden');
-                    }
-                } catch (error) {
-                    console.error('Password verification error:', error);
-                    passwordError.textContent = '확인 중 오류가 발생했습니다.';
-                    passwordError.classList.remove('hidden');
+
+                const sentences = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
+                sentencesFeed.innerHTML = '';
+                sentences.forEach(data => {
+                    const el = document.createElement('div');
+                    el.className = 'bg-white p-3 rounded-lg border border-gray-200 shadow-sm';
+                    const authorDisplay = data.authorName ? `작성자: ${data.authorName}` : `익명`;
+                    const likesBy = data.likesBy || [];
+                    const likeCount = likesBy.length;
+                    const userHasLiked = userId && likesBy.includes(userId);
+                    el.innerHTML = `<p class="text-gray-800">${data.text}</p><div class="flex justify-between items-center mt-2 pt-2 border-t border-gray-100"><span class="text-xs text-gray-500">${authorDisplay}</span><button class="like-btn ${userHasLiked ? 'liked' : ''}" data-id="${data.id}">❤️ <span class="like-count">${likeCount}</span></button></div>`;
+                    sentencesFeed.appendChild(el);
+                });
+
+                // 2. 1번에서 확인한 결과, 사용자가 맨 아래에 있었다면 새로운 내용이 추가된 후에도 맨 아래로 스크롤을 이동시킵니다.
+                if (isScrolledToBottom) {
+                    sentencesFeed.scrollTop = sentencesFeed.scrollHeight;
                 }
-            }
-
-            async function updatePhase(phase) {
-                const appStateRef = doc(db, `/artifacts/${appId}/public/data/appState`);
-                await setDoc(appStateRef, { currentPhase: phase, updatedAt: serverTimestamp() });
-            }
-
-            async function fetchAndSetNewSharedImages() {
-                if (!isTeacher) return;
-                startActivityBtn.disabled = true;
-                startActivityBtn.textContent = '초기화 및 로딩 중...';
-                try {
-                    await updatePhase('waiting');
-                    const sentencesCol = collection(db, `/artifacts/${appId}/public/data/sentences`);
-                    const wordsCol = collection(db, `/artifacts/${appId}/public/data/words`);
-                    const sentenceSnapshot = await getDocs(sentencesCol);
-                    const wordSnapshot = await getDocs(wordsCol);
-                    const deletePromises = [
-                        ...sentenceSnapshot.docs.map(d => deleteDoc(d.ref)),
-                        ...wordSnapshot.docs.map(d => deleteDoc(d.ref))
-                    ];
-                    await Promise.all(deletePromises);
-                    await setDoc(doc(db, `/artifacts/${appId}/public/data/aiHelper`, "current"), { content: null });
-
-                    const topics = ['nature', 'animals', 'things', 'fantasy', 'space'];
-                    const fetchRandomImage = async (query) => {
-                        const response = await fetch(`/.netlify/functions/fetchImage?query=${query}`);
-                        if (!response.ok) throw new Error(`API error: ${response.statusText}`);
-                        return await response.json();
-                    };
-                    const [imageData1, imageData2] = await Promise.all([
-                        fetchRandomImage(topics[Math.floor(Math.random() * topics.length)]),
-                        fetchRandomImage(topics[Math.floor(Math.random() * topics.length)])
-                    ]);
-                    if (imageData1 && imageData2) {
-                        await setDoc(doc(db, `/artifacts/${appId}/public/data/sharedImages`, "current"), {
-                            url1: imageData1.urls.regular, alt1: imageData1.alt_description,
-                            url2: imageData2.urls.regular, alt2: imageData2.alt_description,
-                            updatedAt: serverTimestamp()
-                        });
-                        await updatePhase('images_only');
-                        showToast("새로운 활동이 시작되었습니다!");
-                    } else {
-                        showToast("이미지 로딩에 실패했습니다.", true);
-                    }
-                } catch (error) {
-                    console.error("Error starting activity:", error);
-                    showToast("초기화 중 오류가 발생했습니다.", true);
-                } finally {
-                    startActivityBtn.disabled = false;
-                    startActivityBtn.textContent = '1. 활동 시작 (사진 불러오기)';
-                }
-            }
-
-            async function getAiInspiration() {
-                if (!isTeacher) return;
-                getAiInspirationBtn.disabled = true;
-                getAiInspirationBtn.textContent = 'AI 생각 중...';
-                aiHelperDiv.classList.remove('hidden');
-                aiOutputDiv.innerHTML = '<p class="text-gray-600">Gemini AI에게 물어보고 있습니다...</p>';
-                try {
-                    const imageDoc = await getDoc(doc(db, `/artifacts/${appId}/public/data/sharedImages`, "current"));
-                    if (!imageDoc.exists()) throw new Error("먼저 사진을 불러와주세요.");
-                    const { alt1, alt2 } = imageDoc.data();
-                    const response = await fetch('/.netlify/functions/getAiInspiration', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ alt1, alt2 })
-                    });
-                    if (!response.ok) throw new Error(`AI 함수 호출 실패: ${response.statusText}`);
-                    const result = await response.json();
-                    const aiResponseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-                    if (aiResponseText) {
-                        await setDoc(doc(db, `/artifacts/${appId}/public/data/aiHelper`, "current"), {
-                            content: aiResponseText,
-                            updatedAt: serverTimestamp()
-                        });
-                    } else {
-                        throw new Error(result.error || "AI로부터 유효한 응답을 받지 못했습니다.");
-                    }
-                } catch (error) {
-                    console.error("AI Inspiration Error:", error);
-                    aiOutputDiv.innerHTML = `<p class="text-red-500">오류: ${error.message}</p>`;
-                } finally {
-                    getAiInspirationBtn.disabled = false;
-                    getAiInspirationBtn.textContent = 'AI 영감 얻기';
-                }
-            }
-
-            // --- 5. REAL-TIME LISTENERS (UI UPDATES) ---
-
-            function listenForAppState() {
-                const appStateRef = doc(db, `/artifacts/${appId}/public/data/appState`);
-                onSnapshot(appStateRef, (docSnapshot) => {
-                    const phase = docSnapshot.exists() ? docSnapshot.data().currentPhase : 'waiting';
-
-                    // 모든 UI 섹션을 먼저 숨겨서 초기화
-                    waitingOverlay.classList.add('hidden');
-                    imageContainer.classList.add('hidden');
-                    wordActivitySection.classList.add('hidden');
-                    sentenceActivitySection.classList.add('hidden');
-
-                    // 교사인 경우, 다음 단계 버튼을 비활성화하여 순서대로 누르도록 유도
-                    if (isTeacher) {
-                        activateWordInputBtn.disabled = true;
-                        activateSentenceInputBtn.disabled = true;
-                    }
-
-                    // 현재 단계(phase)에 따라 필요한 UI 섹션만 표시
-                    switch (phase) {
-                        case 'images_only':
-                            imageContainer.classList.remove('hidden');
-                            if (isTeacher) activateWordInputBtn.disabled = false;
-                            break;
-                        case 'word_input_active':
-                            imageContainer.classList.remove('hidden');
-                            wordActivitySection.classList.remove('hidden');
-                            if (isTeacher) activateSentenceInputBtn.disabled = false;
-                            break;
-                        case 'sentence_input_active':
-                            imageContainer.classList.remove('hidden');
-                            wordActivitySection.classList.remove('hidden');
-                            sentenceActivitySection.classList.remove('hidden');
-                            break;
-                        case 'waiting':
-                        default:
-                            // ✨ 핵심 수정: 학생일 경우에만 대기 화면을 보여줌
-                            if (!isTeacher) {
-                                waitingOverlay.classList.remove('hidden');
-                            }
-                            break;
-                    }
-                });
-            }
-
-            function listenForSharedImages() {
-                const imageDocRef = doc(db, `/artifacts/${appId}/public/data/sharedImages`, "current");
-                onSnapshot(imageDocRef, (doc) => {
-                    imageContainer.innerHTML = '';
-                    if (doc.exists()) {
-                        const data = doc.data();
-                        const img1 = document.createElement('img');
-                        img1.src = data.url1; img1.alt = data.alt1 || 'Shared image 1'; img1.className = 'w-full h-full object-cover rounded-lg shadow-md';
-                        const img2 = document.createElement('img');
-                        img2.src = data.url2; img2.alt = data.alt2 || 'Shared image 2'; img2.className = 'w-full h-full object-cover rounded-lg shadow-md';
-                        imageContainer.appendChild(img1);
-                        imageContainer.appendChild(img2);
-                    } else {
-                        imageContainer.innerHTML = `<div class="bg-gray-200 aspect-ratio-4/3 rounded-lg flex items-center justify-center p-4 text-center"><p class="text-gray-500">선생님이 활동을 시작하기를 기다리고 있습니다.</p></div><div class="bg-gray-200 aspect-ratio-4/3 rounded-lg flex items-center justify-center p-4 text-center"><p class="text-gray-500">사진이 여기에 표시됩니다.</p></div>`;
-                    }
-                });
-            }
-
-            function listenForAiHelper() {
-                const aiHelperDocRef = doc(db, `/artifacts/${appId}/public/data/aiHelper`, "current");
-                onSnapshot(aiHelperDocRef, (doc) => {
-                    if (doc.exists() && doc.data().content) {
-                        aiHelperDiv.classList.remove('hidden');
-                        // ... (AI Helper 파싱 로직은 기존과 동일하여 생략)
-                    } else {
-                        aiHelperDiv.classList.add('hidden');
-                    }
-                });
-            }
-
-            function listenForWords() {
-                const wordsCol = collection(db, `/artifacts/${appId}/public/data/words`);
-                onSnapshot(query(wordsCol), (snapshot) => {
-                    // ... (생각 구름 표시 로직은 기존과 동일하여 생략)
-                });
-            }
-
-            function listenForSentences() {
+            });
+        };
+        const handleWordFormSubmit = async (event) => {
+            event.preventDefault();
+            const wordText = wordInput.value.trim(); const authorName = authorNameInput.value.trim();
+            // if (!authorName) { showToast("이름을 입력해주세요!", true); return; }
+            if (!wordText) { showToast("낱말을 입력해주세요!", true); return; }
+            if (userId) { try { await addDoc(collection(db, `/artifacts/${appId}/public/data/words`), { text: wordText, createdAt: serverTimestamp(), authorId: userId, }); wordInput.value = ''; } catch (error) { console.error("Error submitting word:", error); showToast("낱말 제출 중 오류가 발생했습니다.", true); } }
+        };
+        const handleFormSubmit = async (event) => {
+            event.preventDefault();
+            const sentenceText = sentenceInput.value.trim(); const authorName = authorNameInput.value.trim();
+            if (!authorName) { showToast("이름을 입력해주세요!", true); return; }
+            if (!sentenceText) { showToast("문장을 입력해주세요!", true); return; }
+            if (userId) { try { await addDoc(collection(db, `/artifacts/${appId}/public/data/sentences`), { text: sentenceText, authorName: authorName, createdAt: serverTimestamp(), authorId: userId, likesBy: [] }); sentenceInput.value = ''; } catch (error) { console.error("Error submitting sentence:", error); showToast("문장 제출 중 오류가 발생했습니다.", true); } }
+        };
+        const handleLikeClick = async (e) => { const button = e.target.closest('.like-btn'); if (!button || !userId) return; const sentenceId = button.dataset.id; const sentenceRef = doc(db, `/artifacts/${appId}/public/data/sentences`, sentenceId); try { const docSnap = await getDoc(sentenceRef); if (docSnap.exists()) { const likesBy = docSnap.data().likesBy || []; if (likesBy.includes(userId)) { await updateDoc(sentenceRef, { likesBy: arrayRemove(userId) }); } else { await updateDoc(sentenceRef, { likesBy: arrayUnion(userId) }); } } } catch (error) { console.error("Error updating likes:", error); showToast("공감 실패!", true); } };
+        async function exportToCSV() {
+            if (!isTeacher) return;
+            showToast("CSV 파일 생성 중...");
+            try {
                 const sentencesCol = collection(db, `/artifacts/${appId}/public/data/sentences`);
-                onSnapshot(query(sentencesCol), (snapshot) => {
-                    // ... (문장 피드 표시 로직은 기존과 동일하여 생략)
+                const snapshot = await getDocs(query(sentencesCol));
+                let csvContent = "data:text/csv;charset=utf-8,작성자,문장,공감 수\n";
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const author = data.authorName || '익명';
+                    const sentence = `"${data.text.replace(/"/g, '""')}"`; // Handle quotes
+                    const likes = (data.likesBy || []).length;
+                    csvContent += [author, sentence, likes].join(",") + "\n";
                 });
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `수업결과_${new Date().toISOString().slice(0, 10)}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (error) {
+                console.error("CSV Export Error: ", error);
+                showToast("CSV 저장 중 오류 발생", true);
             }
+        }
 
-            // --- 6. EVENT HANDLERS ---
+        function exportToPDF() {
+            if (!isTeacher) return;
+            showToast("PDF 파일 생성 중... 잠시만 기다려주세요.");
+            // Temporarily hide elements not for export
+            document.querySelectorAll('.print-hide').forEach(el => el.classList.add('hidden'));
 
-            async function handleWordFormSubmit(e) {
-                e.preventDefault();
-                const wordText = wordInput.value.trim();
-                const authorName = authorNameInput.value.trim();
-                if (wordText && authorName && userId) {
-                    await addDoc(collection(db, `/artifacts/${appId}/public/data/words`), {
-                        text: wordText, authorName: authorName,
-                        createdAt: serverTimestamp(), authorId: userId,
-                    });
-                    wordInput.value = '';
-                } else if (!authorName) {
-                    showToast("이름을 입력해주세요!", true);
-                } else if (!wordText) {
-                    showToast("낱말을 입력해주세요!", true);
-                }
+            html2canvas(exportContent, {
+                scale: 2, // Higher scale for better quality
+                useCORS: true // Important for external images
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                const canvasWidth = canvas.width;
+                const canvasHeight = canvas.height;
+                const ratio = canvasWidth / canvasHeight;
+                const width = pdfWidth - 20; // with margin
+                const height = width / ratio;
+
+                pdf.addImage(imgData, 'PNG', 10, 10, width, height);
+                pdf.save(`수업결과_${new Date().toISOString().slice(0, 10)}.pdf`);
+
+                // Show hidden elements again
+                document.querySelectorAll('.print-hide').forEach(el => el.classList.remove('hidden'));
+            }).catch(error => {
+                console.error("PDF Export Error: ", error);
+                showToast("PDF 저장 중 오류 발생", true);
+                document.querySelectorAll('.print-hide').forEach(el => el.classList.remove('hidden'));
+            });
+        }
+        // --- 로그인/로그아웃 처리 함수 ---
+        // --- 화면 전환 함수 ---
+        const showScreen = (screenId) => {
+            loginContainer.classList.add('hidden');
+            dashboardContainer.classList.add('hidden');
+            exportContent.classList.add('hidden');
+
+            const screenToShow = document.getElementById(screenId);
+            if (screenToShow) {
+                screenToShow.classList.remove('hidden');
             }
+        };
 
-            async function handleFormSubmit(e) {
-                e.preventDefault();
-                const sentenceText = sentenceInput.value.trim();
-                const authorName = authorNameInput.value.trim();
-                if (sentenceText && authorName && userId) {
-                    await addDoc(collection(db, `/artifacts/${appId}/public/data/sentences`), {
-                        text: sentenceText, authorName: authorName,
-                        createdAt: serverTimestamp(), authorId: userId, likesBy: []
-                    });
-                    sentenceInput.value = '';
-                } else if (!authorName) {
-                    showToast("이름을 입력해주세요!", true);
-                }
+        // --- Firestore 사용자 정보 저장/업데이트 함수 ---
+        const saveUserToFirestore = async (user) => {
+            const userRef = doc(db, "users", user.uid);
+            const userData = {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName,
+                photoURL: user.photoURL,
+                lastLogin: serverTimestamp() // 마지막 로그인 시간 기록
+            };
+            await setDoc(userRef, userData, { merge: true }); // 없으면 생성, 있으면 병합
+        };
+        const generateJoinCode = (length = 6) => {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
             }
+            return result;
+            // 참고: 이 방식은 코드가 중복될 수 있는 아주 희박한 가능성이 있습니다.
+            // 사용자가 매우 많은 서비스에서는 DB를 확인하여 중복을 피하는 로직이 필요합니다.
+        };
+        // --- 대시보드 기능 함수 ---
+        const setupDashboard = (user) => {
+            dashboardWelcome.textContent = `${user.displayName}님, 환영합니다.`;
 
-            async function handleLikeClick(e) {
-                const button = e.target.closest('.like-btn');
-                if (!button || !userId) return;
-                const sentenceId = button.dataset.id;
-                const sentenceRef = doc(db, `/artifacts/${appId}/public/data/sentences`, sentenceId);
-                try {
-                    const docSnap = await getDoc(sentenceRef);
-                    if (docSnap.exists()) {
-                        const likesBy = docSnap.data().likesBy || [];
-                        if (likesBy.includes(userId)) {
-                            await updateDoc(sentenceRef, { likesBy: arrayRemove(userId) });
-                        } else {
-                            await updateDoc(sentenceRef, { likesBy: arrayUnion(userId) });
-                        }
+            // 로그아웃 버튼 이벤트
+            logoutBtn.addEventListener('click', () => signOut(auth));
+
+            // --- [수정됨] 새 클래스 만들기 버튼 이벤트 ---
+            createClassBtn.addEventListener('click', async () => {
+                const className = prompt("새 클래스의 이름을 입력해주세요:", "예: 6학년 창의적 글쓰기");
+
+                if (className && className.trim() !== "") {
+                    try {
+                        const joinCode = generateJoinCode();
+
+                        // Firestore 'classrooms' 컬렉션에 새 문서 추가
+                        await addDoc(collection(db, "classrooms"), {
+                            className: className.trim(),
+                            teacherId: user.uid, // 현재 로그인한 교사의 ID
+                            joinCode: joinCode,
+                            createdAt: serverTimestamp()
+                        });
+
+                        alert(`'${className}' 클래스가 생성되었습니다!`);
+
+                    } catch (error) {
+                        console.error("Error creating classroom: ", error);
+                        alert("클래스 생성 중 오류가 발생했습니다.");
                     }
-                } catch (error) {
-                    console.error("Error updating likes:", error);
-                    showToast("공감 실패!", true);
+                } else {
+                    alert("클래스 이름이 유효하지 않습니다.");
                 }
-            }
+            });
 
-            function exportToCSV() { /* 기존과 동일 */ }
-            function exportToPDF() { /* 기존과 동일 */ }
+            // 사용자의 클래스 목록 실시간으로 보여주기
+            displayUserClasses(user.uid);
+        };
 
+        const displayUserClasses = (userId) => {
+            const q = query(collection(db, "classrooms"), where("teacherId", "==", userId));
 
-            // --- 7. APPLICATION INITIALIZATION ---
-
-            async function main() {
-                try {
-                    const app = initializeApp(firebaseConfig);
-                    db = getFirestore(app);
-                    auth = getAuth(app);
-                } catch (e) {
-                    console.error("Firebase init failed:", e);
-                    userInfoDisplay.textContent = "앱 초기화에 실패했습니다. 새로고침 해주세요.";
+            onSnapshot(q, (snapshot) => {
+                if (snapshot.empty) {
+                    classroomList.innerHTML = '<p class="text-gray-500 text-center py-4">아직 생성된 클래스가 없습니다.</p>';
                     return;
                 }
 
-                onAuthStateChanged(auth, async (user) => {
-                    if (user) {
-                        userId = user.uid;
-                        userInfoDisplay.textContent = `상상하며 문장 만들기`;
-
-                        // URL을 확인하여 교사인지 학생인지 먼저 결정
-                        const urlParams = new URLSearchParams(window.location.search);
-                        isTeacher = urlParams.get('teacher') === 'true';
-
-                        // 모든 리스너를 먼저 등록
-                        listenForAppState();
-                        listenForSharedImages();
-                        listenForAiHelper();
-                        listenForWords();
-                        listenForSentences();
-
-                        // 모든 이벤트 핸들러를 여기에 등록
-                        wordForm.addEventListener('submit', handleWordFormSubmit);
-                        sentenceForm.addEventListener('submit', handleFormSubmit);
-                        sentencesFeed.addEventListener('click', handleLikeClick);
-                        submitPasswordBtn.addEventListener('click', checkPassword);
-                        cancelPasswordBtn.addEventListener('click', closePasswordModal);
-                        passwordInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkPassword(); });
-                        passwordModal.addEventListener('click', (e) => { if (e.target === passwordModal) closePasswordModal(); });
-
-                        // 역할에 따라 UI 및 특정 이벤트 핸들러를 분기
-                        if (isTeacher) {
-                            waitingOverlay.classList.add('hidden'); // 교사는 대기화면 즉시 숨김
-                            openPasswordModal(); // 비밀번호 입력창 바로 열기
-
-                            // 교사 전용 버튼 이벤트 핸들러 등록
-                            startActivityBtn.addEventListener('click', fetchAndSetNewSharedImages);
-                            activateWordInputBtn.addEventListener('click', () => updatePhase('word_input_active'));
-                            activateSentenceInputBtn.addEventListener('click', () => updatePhase('sentence_input_active'));
-                            getAiInspirationBtn.addEventListener('click', getAiInspiration);
-                            exportPdfBtn.addEventListener('click', exportToPDF);
-                            exportCsvBtn.addEventListener('click', exportToCSV);
-                        } else {
-                            // 학생의 경우, '교사 모드' 버튼이 작동하도록 핸들러 등록
-                            teacherModeBtn.addEventListener('click', openPasswordModal);
-                        }
-
-                    } else {
-                        // 익명 로그인이 실패할 경우를 대비한 재시도 로직
-                        let attempts = 0;
-                        const maxAttempts = 3;
-                        const signIn = async () => {
-                            try {
-                                await signInAnonymously(auth);
-                            } catch (error) {
-                                attempts++;
-                                if (attempts < maxAttempts) {
-                                    setTimeout(signIn, 2000);
-                                } else {
-                                    userInfoDisplay.textContent = "인증 실패. 새로고침 해주세요.";
-                                }
-                            }
-                        };
-                        await signIn();
-                    }
+                classroomList.innerHTML = ''; // 목록 초기화
+                snapshot.forEach(doc => {
+                    const classroom = doc.data();
+                    const classEl = document.createElement('div');
+                    classEl.className = 'flex justify-between items-center bg-gray-50 p-4 rounded-lg border';
+                    classEl.innerHTML = `
+                    <div>
+                        <h4 class="font-bold text-lg">${classroom.className}</h4>
+                        <p class="text-sm text-gray-500">참여 코드: <span class="font-mono bg-gray-200 px-2 py-1 rounded">${classroom.joinCode}</span></p>
+                    </div>
+                    <button class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">입장</button>
+                `;
+                    // TODO: '입장' 버튼 클릭 시 해당 클래스의 활동 페이지로 이동하는 로직 추가
+                    classroomList.appendChild(classEl);
                 });
-            }
+            });
+        };
+        const main = async () => {
+            try {
+                initializeApp(firebaseConfig);
+                db = getFirestore(); auth = getAuth();
+            } catch (e) { console.error("Firebase init failed:", e); return; }
 
-            main();
-        </script>
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    // 사용자가 로그인한 경우
+                    // userId = user.uid;
+                    // showAppScreen(user);
+
+                    // userId = user.uid; userInfoDisplay.textContent = '상상하며 글쓰기';
+                    // 사용자가 로그인한 경우
+                    currentUser = user;
+                    await saveUserToFirestore(user); // Firestore에 사용자 정보 저장
+                    setupDashboard(user); // 대시보드 설정
+                    showScreen('dashboard-container'); // 대시보드 화면 보여주기
+                    const urlParams = new URLSearchParams(window.location.search);
+                    isTeacher = urlParams.get('teacher') === 'true';
+
+                    // 모든 리스너(listener) 함수들을 정상적으로 호출
+                    listenForAppState();
+                    listenForSharedImages();
+                    listenForWords();
+                    listenForSentences();
+                    listenForAiHelper(); // 정의된 함수를 호출
+
+                    wordForm.addEventListener('submit', handleWordFormSubmit);
+                    sentenceForm.addEventListener('submit', handleFormSubmit);
+                    sentencesFeed.addEventListener('click', handleLikeClick);
+                    submitPasswordBtn.addEventListener('click', checkPassword);
+                    cancelPasswordBtn.addEventListener('click', closePasswordModal);
+                    passwordInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkPassword(); });
+                    passwordModal.addEventListener('click', (e) => { if (e.target === passwordModal) closePasswordModal(); });
+
+                    console.log(`${user.displayName} 사용자가 로그인했습니다.`);
+
+                    if (isTeacher) {
+                        waitingOverlay.classList.add('hidden');
+                        openPasswordModal();
+
+                        startActivityBtn.addEventListener('click', fetchAndSetNewSharedImages);
+                        activateWordInputBtn.addEventListener('click', () => updatePhase('word_input_active'));
+                        activateSentenceInputBtn.addEventListener('click', () => updatePhase('sentence_input_active'));
+                        getAiInspirationBtn.addEventListener('click', getAiInspiration);
+                        exportPdfBtn.addEventListener('click', exportToPDF); // PDF, CSV 내보내기 함수는 구현되지 않아 주석 처리
+                        exportCsvBtn.addEventListener('click', exportToCSV);
+                    } else {
+                        teacherModeBtn.addEventListener('click', openPasswordModal);
+                    }
+                } else {
+                    // 사용자가 로그아웃한 경우
+                    // userId = null;
+                    // showLoginScreen();
+                    // console.log("사용자가 로그아웃했습니다.");
+                    // try { await signInAnonymously(auth); } catch (error) { console.error("Anonymous sign-in failed", error); }
+                    // 사용자가 로그아웃한 경우
+                    currentUser = null;
+                    showScreen('login-container'); // 로그인 화면 보여주기
+                }
+            });
+            // --- ADDED: 구글 로그인 버튼 이벤트 리스너 ---
+            googleLoginBtn.addEventListener('click', async () => {
+                const provider = new GoogleAuthProvider();
+                try {
+                    await signInWithPopup(auth, provider);
+                    // 로그인 성공 시 onAuthStateChanged가 자동으로 감지하여 처리합니다.
+                } catch (error) {
+                    console.error("Google sign-in error", error);
+                    showToast("구글 로그인 중 오류가 발생했습니다.", true);
+                }
+            });
+        };
+
+        main();
+    </script>
 </body>
 
 </html>
