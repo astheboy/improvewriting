@@ -644,6 +644,67 @@
             }
         };
 
+        async function exportToCSV() {
+            if (!currentClassId) {
+                showToast("클래스에 입장한 후 사용해주세요.", true);
+                return;
+            }
+            showToast("CSV 파일 생성 중...");
+            try {
+                // [수정됨] 현재 클래스 ID를 사용하여 올바른 경로에서 데이터 가져오기
+                const sentencesCol = collection(db, `classrooms/${currentClassId}/sentences`);
+                const snapshot = await getDocs(query(sentencesCol));
+
+                let csvContent = "data:text/csv;charset=utf-8,작성자,문장,공감 수\n";
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    const author = data.authorName || '익명';
+                    const sentence = `"${(data.text || '').replace(/"/g, '""')}"`;
+                    const likes = (data.likesBy || []).length;
+                    csvContent += [author, sentence, likes].join(",") + "\n";
+                });
+
+                const encodedUri = encodeURI(csvContent);
+                const link = document.createElement("a");
+                link.setAttribute("href", encodedUri);
+                link.setAttribute("download", `수업결과_${new Date().toISOString().slice(0, 10)}.csv`);
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            } catch (error) {
+                console.error("CSV Export Error: ", error);
+                showToast("CSV 저장 중 오류 발생", true);
+            }
+        }
+
+        function exportToPDF() {
+            showToast("PDF 파일 생성 중... 잠시만 기다려주세요.");
+            document.querySelectorAll('.print-hide').forEach(el => el.style.visibility = 'hidden');
+
+            html2canvas(exportContent, {
+                scale: 2,
+                useCORS: true
+            }).then(canvas => {
+                const imgData = canvas.toDataURL('image/png');
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const canvasWidth = canvas.width;
+                const canvasHeight = canvas.height;
+                const ratio = canvasWidth / canvasHeight;
+                const width = pdfWidth;
+                const height = width / ratio;
+
+                pdf.addImage(imgData, 'PNG', 0, 0, width, height);
+                pdf.save(`수업결과_${new Date().toISOString().slice(0, 10)}.pdf`);
+            }).catch(error => {
+                console.error("PDF Export Error: ", error);
+                showToast("PDF 저장 중 오류 발생", true);
+            }).finally(() => {
+                document.querySelectorAll('.print-hide').forEach(el => el.style.visibility = 'visible');
+            });
+        }
+
         // --- 메인 실행 함수 ---
         const main = async () => {
             try {
@@ -784,6 +845,9 @@
                     getAiInspirationBtn.textContent = 'AI 영감 얻기';
                 }
             });
+
+            exportPdfBtn.addEventListener('click', exportToPDF);
+            exportCsvBtn.addEventListener('click', exportToCSV);
 
             wordForm.addEventListener('submit', async (e) => {
                 e.preventDefault();
