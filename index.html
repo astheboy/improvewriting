@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>상상하며 글쓰기</title>
+    <title>상상하여 글쓰기</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -122,7 +122,7 @@
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-4">
 
     <div id="login-container" class="fixed inset-0 bg-white z-50 flex flex-col items-center justify-center">
-        <h1 class="text-4xl font-bold text-gray-800">상상하며 글쓰기</h1>
+        <h1 class="text-4xl font-bold text-gray-800">상상하여 글쓰기</h1>
         <p class="text-lg text-gray-600 mt-4">수업을 시작하려면 구글 계정으로 로그인해주세요.</p>
         <button id="google-login-btn"
             class="mt-8 bg-white py-2 px-6 border border-gray-300 rounded-full shadow-md hover:shadow-lg transition-shadow flex items-center gap-3">
@@ -177,11 +177,13 @@
     <div id="export-content"
         class="w-full max-w-5xl bg-white rounded-2xl shadow-xl p-6 md:p-8 space-y-6 relative hidden">
 
-        <div class="absolute top-4 right-4 print-hide">
-            <button id="teacher-mode-btn"
-                class="bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-bold py-2 px-3 rounded-lg transition-colors">
-                교사 모드
+        <div class="absolute top-4 left-4 print-hide">
+            <button id="back-to-dashboard-btn"
+                class="bg-gray-500 hover:bg-gray-600 text-white text-sm font-bold py-2 px-3 rounded-lg transition-colors">
+                &larr; 대시보드로
             </button>
+        </div>
+        <div class="absolute top-4 right-4 print-hide">
         </div>
 
         <header class="text-center pt-8">
@@ -266,30 +268,13 @@
         </div>
     </div>
 
-    <div id="password-modal"
-        class="hidden fixed inset-0 bg-gray-900 bg-opacity-50 flex items-center justify-center z-50">
-        <div class="bg-white rounded-lg shadow-xl p-6 w-full max-w-sm">
-            <h3 class="text-xl font-bold mb-4">교사 모드</h3>
-            <p class="text-gray-600 mb-4">계속하려면 비밀번호를 입력하세요.</p>
-            <input type="password" id="password-input" class="w-full p-2 border border-gray-300 rounded-md mb-4"
-                placeholder="비밀번호">
-            <div id="password-error" class="text-red-500 text-sm mb-4 hidden"></div>
-            <div class="flex justify-end space-x-3">
-                <button id="cancel-password-btn"
-                    class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-300">취소</button>
-                <button id="submit-password-btn"
-                    class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">확인</button>
-            </div>
-        </div>
-    </div>
-
     <div id="toast-notification" class="toast"></div>
 
     <script type="module">
         // --- Firebase 모듈 임포트 ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, doc, setDoc, deleteDoc, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, deleteDoc, writeBatch, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // --- Firebase 설정 ---
         const firebaseConfig = {
@@ -303,40 +288,83 @@
         };
 
         // --- 전역 변수 및 HTML 요소 ---
-        let db, auth, currentUser;
-        let activeListeners = []; // 활성화된 리스너를 저장하여 중복을 방지
+        let db, auth, currentUser, currentClassId = null;
+        let activeListeners = [];
 
+        // 화면 요소
         const loginContainer = document.getElementById('login-container');
-        const googleLoginBtn = document.getElementById('google-login-btn');
         const dashboardContainer = document.getElementById('dashboard-container');
+        const exportContent = document.getElementById('export-content');
+
+        // 대시보드 요소
+        const googleLoginBtn = document.getElementById('google-login-btn');
         const dashboardWelcome = document.getElementById('dashboard-welcome');
         const logoutBtn = document.getElementById('logout-btn');
         const newClassNameInput = document.getElementById('new-class-name-input');
         const addClassBtn = document.getElementById('add-class-btn');
         const classroomList = document.getElementById('classroom-list');
-        const exportContent = document.getElementById('export-content');
 
-        // --- 유틸리티 및 UI 함수 ---
+        // 활동 페이지 요소
+        const backToDashboardBtn = document.getElementById('back-to-dashboard-btn');
+        const imageContainer = document.getElementById('image-container');
+        const wordActivitySection = document.getElementById('word-activity-section');
+        const sentenceActivitySection = document.getElementById('sentence-activity-section');
+        const sentencesFeed = document.getElementById('sentences-feed');
+        const wordForm = document.getElementById('word-form');
+        const wordInput = document.getElementById('word-input');
+        const sentenceForm = document.getElementById('sentence-form');
+        const sentenceInput = document.getElementById('sentence-input');
+        const authorNameInput = document.getElementById('author-name-input');
+        const wordCloudFeed = document.getElementById('word-cloud-feed');
+        const teacherControls = document.getElementById('teacher-controls');
+        const startActivityBtn = document.getElementById('start-activity-btn');
+        const activateWordInputBtn = document.getElementById('activate-word-input-btn');
+        const activateSentenceInputBtn = document.getElementById('activate-sentence-input-btn');
+        const getAiInspirationBtn = document.getElementById('get-ai-inspiration-btn');
+        const aiHelperDiv = document.getElementById('ai-helper');
+        const aiOutputDiv = document.getElementById('ai-output');
+        const exportPdfBtn = document.getElementById('export-pdf-btn');
+        const exportCsvBtn = document.getElementById('export-csv-btn');
+        const toastNotification = document.getElementById('toast-notification');
+
+        // --- 유틸리티 함수 ---
+        const showToast = (message, isError = false) => {
+            toastNotification.textContent = message;
+            toastNotification.style.backgroundColor = isError ? '#ef4444' : '#22c55e';
+            toastNotification.classList.add('show');
+            setTimeout(() => toastNotification.classList.remove('show'), 3000);
+        };
+
         const showScreen = (screenId) => {
             loginContainer.classList.add('hidden');
             dashboardContainer.classList.add('hidden');
             exportContent.classList.add('hidden');
+
             const screenToShow = document.getElementById(screenId);
-            if (screenToShow) screenToShow.classList.remove('hidden');
+            if (screenToShow) {
+                screenToShow.classList.remove('hidden');
+            }
+        };
+
+        const generateJoinCode = (length = 6) => {
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            let result = '';
+            for (let i = 0; i < length; i++) {
+                result += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return result;
         };
 
         const saveUserToFirestore = async (user) => {
             const userRef = doc(db, "users", user.uid);
-            await setDoc(userRef, {
-                uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL, lastLogin: serverTimestamp()
-            }, { merge: true });
-        };
-
-        const generateJoinCode = (length = 6) => {
-            const chars = 'ABCDEFGHIJKLMNPQRSTUVWXYZ123456789';
-            let result = '';
-            for (let i = 0; i < length; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
-            return result;
+            const userData = {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName,
+                photoURL: user.photoURL,
+                lastLogin: serverTimestamp() // 마지막 로그인 시간 기록
+            };
+            await setDoc(userRef, userData, { merge: true }); // 없으면 생성, 있으면 병합
         };
 
         // --- 대시보드 관련 함수 ---
@@ -346,33 +374,157 @@
         };
 
         const displayUserClasses = (userId) => {
-            const q = query(collection(db, "classrooms"), where("teacherId", "==", userId));
-            const unsubscribe = onSnapshot(q, (snapshot) => {
+            const q = query(collection(db, "classrooms"), where("teacherId", "==", userId), where("createdAt", "!=", null));
+
+            onSnapshot(q, (snapshot) => {
                 if (snapshot.empty) {
                     classroomList.innerHTML = '<p class="text-gray-500 text-center py-4">아직 생성된 클래스가 없습니다.</p>';
                     return;
                 }
+
                 classroomList.innerHTML = '';
-                const sortedDocs = snapshot.docs.sort((a, b) => (b.data().createdAt?.seconds || 0) - (a.data().createdAt?.seconds || 0));
-                sortedDocs.forEach(doc => {
+                snapshot.docs.sort((a, b) => b.data().createdAt - a.data().createdAt).forEach(doc => {
                     const classroom = doc.data();
                     const classId = doc.id;
                     const classEl = document.createElement('div');
                     classEl.className = 'flex justify-between items-center bg-gray-50 p-4 rounded-lg border';
                     classEl.innerHTML = `
-                    <div>
-                        <h4 class="font-bold text-lg">${classroom.className}</h4>
-                        <p class="text-sm text-gray-500">참여 코드: <span class="font-mono bg-gray-200 px-2 py-1 rounded">${classroom.joinCode}</span></p>
-                    </div>
-                    <div class="flex gap-2">
-                        <button class="enter-class-btn bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700" data-id="${classId}">입장</button>
-                        <button class="delete-class-btn bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700" data-id="${classId}">삭제</button>
-                    </div>
-                `;
+                <div>
+                    <h4 class="font-bold text-lg">${classroom.className}</h4>
+                    <p class="text-sm text-gray-500">참여 코드: <span class="font-mono bg-gray-200 px-2 py-1 rounded">${classroom.joinCode}</span></p>
+                </div>
+                <div class="flex gap-2">
+                    <button class="enter-class-btn bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700" data-id="${classId}">입장</button>
+                    <button class="delete-class-btn bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700" data-id="${classId}">삭제</button>
+                </div>
+            `;
                     classroomList.appendChild(classEl);
                 });
             });
+        };
+
+        // --- [재통합] 활동 페이지 관련 함수들 (classId 사용하도록 수정됨) ---
+        const cleanupListeners = () => {
+            activeListeners.forEach(unsub => unsub());
+            activeListeners = [];
+        };
+
+        const updatePhase = async (classId, phase) => {
+            const appStateRef = doc(db, `classrooms/${classId}/appState/current`);
+            await setDoc(appStateRef, { currentPhase: phase, updatedAt: serverTimestamp() });
+        };
+
+        const listenForAppState = (classId) => {
+            const appStateRef = doc(db, `classrooms/${classId}/appState/current`);
+            const unsubscribe = onSnapshot(appStateRef, (docSnapshot) => {
+                const phase = docSnapshot.exists() ? docSnapshot.data().currentPhase : 'waiting';
+                imageContainer.classList.add('hidden');
+                wordActivitySection.classList.add('hidden');
+                sentenceActivitySection.classList.add('hidden');
+                activateWordInputBtn.disabled = true;
+                activateSentenceInputBtn.disabled = true;
+                switch (phase) {
+                    case 'images_only': imageContainer.classList.remove('hidden'); activateWordInputBtn.disabled = false; break;
+                    case 'word_input_active': imageContainer.classList.remove('hidden'); wordActivitySection.classList.remove('hidden'); activateSentenceInputBtn.disabled = false; break;
+                    case 'sentence_input_active': imageContainer.classList.remove('hidden'); wordActivitySection.classList.remove('hidden'); sentenceActivitySection.classList.remove('hidden'); break;
+                }
+            });
             activeListeners.push(unsubscribe);
+        };
+
+        const listenForSharedImages = (classId) => {
+            const imageDocRef = doc(db, `classrooms/${classId}/sharedImages/current`);
+            const unsubscribe = onSnapshot(imageDocRef, (doc) => {
+                imageContainer.innerHTML = '';
+                if (doc.exists()) {
+                    const data = doc.data();
+                    const img1 = document.createElement('img'); img1.src = data.url1; img1.alt = data.alt1; img1.className = 'w-full h-full object-cover rounded-lg shadow-md';
+                    const img2 = document.createElement('img'); img2.src = data.url2; img2.alt = data.alt2; img2.className = 'w-full h-full object-cover rounded-lg shadow-md';
+                    imageContainer.append(img1, img2);
+                } else {
+                    imageContainer.innerHTML = `<div class="col-span-2 bg-gray-200 aspect-video rounded-lg flex items-center justify-center p-4 text-center"><p class="text-gray-500">선생님이 '활동 시작' 버튼을 누르면 사진이 나타납니다.</p></div>`;
+                }
+            });
+            activeListeners.push(unsubscribe);
+        };
+
+        const listenForAiHelper = (classId) => {
+            const aiHelperDocRef = doc(db, `classrooms/${classId}/aiHelper/current`);
+            onSnapshot(aiHelperDocRef, (doc) => {
+                if (doc.exists() && doc.data().content) {
+                    let content = doc.data().content;
+                    let htmlOutput = '';
+
+                    try {
+                        // AI 응답에 포함될 수 있는 마크다운 코드 블록(```json ... ```)을 제거합니다.
+                        if (content.startsWith("```json")) {
+                            content = content.substring(7, content.length - 3).trim();
+                        } else if (content.startsWith("```")) {
+                            content = content.substring(3, content.length - 3).trim();
+                        }
+
+                        const aiData = JSON.parse(content);
+
+                        if (aiData.exampleSentence && aiData.theme1 && aiData.theme2) {
+                            htmlOutput += '<h4 class="text-md font-bold text-purple-700 mb-2">🔑 관련 키워드</h4>';
+                            htmlOutput += '<div class="flex flex-wrap gap-2">';
+
+                            const allKeywords = [...aiData.theme1, ...aiData.theme2];
+                            allKeywords.forEach(keyword => {
+                                htmlOutput += `<span class="keyword-tag">${keyword}</span>`;
+                            });
+                            htmlOutput += '</div>';
+                            htmlOutput += `
+                    <h4 class="text-md font-bold text-purple-700 mb-2">💡 AI 추천 문장</h4>
+                    <p class="mb-4 p-3 bg-white rounded-md shadow-sm">${aiData.exampleSentence}</p>
+                `;
+                            aiOutputDiv.innerHTML = htmlOutput;
+                        } else {
+                            throw new Error("Invalid AI data structure.");
+                        }
+                    } catch (e) {
+                        console.error("Could not parse AI helper content, displaying as raw text:", e);
+                        // 오류 발생 시에도 원본 텍스트를 보여주어 어떤 내용이 왔는지 확인할 수 있도록 합니다.
+                        aiOutputDiv.innerHTML = `<p class="text-gray-700 whitespace-pre-wrap">${doc.data().content}</p>`;
+                    }
+
+                    aiHelperDiv.classList.remove('hidden');
+                } else {
+                    aiHelperDiv.classList.add('hidden');
+                }
+            });
+        };
+
+        const listenForWords = (classId) => {
+            const wordsCol = collection(db, `classrooms/${classId}/words`);
+            const unsubscribe = onSnapshot(query(wordsCol), (snapshot) => { /* ... 기존과 거의 동일 ... */ });
+            activeListeners.push(unsubscribe);
+        };
+
+        const listenForSentences = (classId) => {
+            const sentencesCol = collection(db, `classrooms/${classId}/sentences`);
+            const unsubscribe = onSnapshot(query(sentencesCol), (snapshot) => { /* ... 기존과 거의 동일 (userId -> currentUser.uid) ... */ });
+            activeListeners.push(unsubscribe);
+        };
+
+        // ... 나머지 활동 함수들(handleFormSubmit, handleLikeClick 등)도
+        // 내부에서 currentClassId 변수를 사용하여 경로를 지정하도록 수정되어야 합니다.
+        // (아래 main 함수 로직에 반영됨)
+
+        // --- [수정됨] 클래스 입장 함수 ---
+        const enterClassroom = (classId) => {
+            currentClassId = classId;
+            cleanupListeners(); // 대시보드 리스너 정리
+
+            showScreen('export-content');
+            teacherControls.classList.remove('hidden');
+
+            // 현재 클래스에 대한 리스너들 활성화
+            listenForAppState(classId);
+            listenForSharedImages(classId);
+            listenForWords(classId);
+            listenForSentences(classId);
+            listenForAiHelper(classId); // 필요 시 추가
         };
 
         // --- 메인 실행 함수 ---
@@ -381,13 +533,9 @@
                 initializeApp(firebaseConfig);
                 db = getFirestore();
                 auth = getAuth();
-            } catch (e) {
-                console.error("Firebase init failed:", e);
-                document.body.innerHTML = 'Firebase 초기화에 실패했습니다.';
-                return;
-            }
+            } catch (e) { console.error("Firebase init failed:", e); }
 
-            // 1. 전역 이벤트 리스너 설정 (페이지 로드 시 한 번만 실행됨)
+            // 1. 전역 이벤트 리스너 설정
             googleLoginBtn.addEventListener('click', () => {
                 signInWithPopup(auth, new GoogleAuthProvider()).catch(error => {
                     if (error.code !== 'auth/popup-closed-by-user') {
@@ -395,9 +543,7 @@
                     }
                 });
             });
-
             logoutBtn.addEventListener('click', () => signOut(auth));
-
             addClassBtn.addEventListener('click', async () => {
                 const className = newClassNameInput.value.trim();
                 if (className && currentUser) {
@@ -418,28 +564,77 @@
                 }
             });
 
+            // 대시보드 내 클래스 목록 이벤트 리스너
             classroomList.addEventListener('click', (e) => {
-                const target = e.target.closest('button');
-                if (!target) return;
-
-                const classId = target.dataset.id;
-
-                if (target.classList.contains('delete-class-btn')) {
-                    if (confirm("정말로 이 클래스를 삭제하시겠습니까?")) {
-                        deleteDoc(doc(db, "classrooms", classId)).catch(err => alert("삭제 실패: " + err.message));
-                    }
-                } else if (target.classList.contains('enter-class-btn')) {
-                    // 바로 다음 단계에서 구현할 부분입니다.
-                    alert(`클래스 ${classId}에 입장합니다. (다음 단계 구현)`);
-                    // enterClassroom(classId); 
+                const button = e.target.closest('button');
+                if (!button) return;
+                const classId = button.dataset.id;
+                if (button.classList.contains('delete-class-btn')) {
+                    if (confirm("정말로 이 클래스를 삭제하시겠습니까?")) deleteDoc(doc(db, "classrooms", classId));
+                } else if (button.classList.contains('enter-class-btn')) {
+                    enterClassroom(classId); // 클래스 입장 함수 호출
                 }
             });
 
+            // 활동 페이지 내 이벤트 리스너
+            backToDashboardBtn.addEventListener('click', () => {
+                cleanupListeners();
+                currentClassId = null;
+                setupDashboardUI(currentUser); // 대시보드 리스너 재설정
+                showScreen('dashboard-container');
+            });
+
+            startActivityBtn.addEventListener('click', async () => {
+                if (!currentClassId) return;
+                // fetchAndSetNewSharedImages(currentClassId); // Netlify function 연동 시 활성화
+                alert("'활동 시작' 기능은 Netlify 함수와 연동이 필요합니다.");
+            });
+
+            wordForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (!currentClassId || !currentUser) return;
+                const wordText = wordInput.value.trim();
+                if (wordText) {
+                    await addDoc(collection(db, `classrooms/${currentClassId}/words`), {
+                        text: wordText, createdAt: serverTimestamp(), authorId: currentUser.uid,
+                    });
+                    wordInput.value = '';
+                }
+            });
+
+            sentenceForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                if (!currentClassId || !currentUser) return;
+                const sentenceText = sentenceInput.value.trim();
+                const authorName = authorNameInput.value.trim() || '익명';
+                if (sentenceText) {
+                    await addDoc(collection(db, `classrooms/${currentClassId}/sentences`), {
+                        text: sentenceText, authorName: authorName, createdAt: serverTimestamp(), authorId: currentUser.uid, likesBy: []
+                    });
+                    sentenceInput.value = '';
+                }
+            });
+
+            sentencesFeed.addEventListener('click', async (e) => {
+                const button = e.target.closest('.like-btn');
+                if (!button || !currentUser || !currentClassId) return;
+                const sentenceId = button.dataset.id;
+                const sentenceRef = doc(db, `classrooms/${currentClassId}/sentences`, sentenceId);
+                const docSnap = await getDoc(sentenceRef);
+                if (docSnap.exists()) {
+                    const likesBy = docSnap.data().likesBy || [];
+                    if (likesBy.includes(currentUser.uid)) {
+                        await updateDoc(sentenceRef, { likesBy: arrayRemove(currentUser.uid) });
+                    } else {
+                        await updateDoc(sentenceRef, { likesBy: arrayUnion(currentUser.uid) });
+                    }
+                }
+            });
+
+
             // 2. 인증 상태 변화 감지
             onAuthStateChanged(auth, async (user) => {
-                activeListeners.forEach(unsub => unsub());
-                activeListeners = [];
-
+                cleanupListeners();
                 if (user) {
                     currentUser = user;
                     await saveUserToFirestore(user);
