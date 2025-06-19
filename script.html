@@ -1,0 +1,187 @@
+<script type="module">
+    // --- Firebase 모듈 임포트 ---
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+    import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+    import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, deleteDoc, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+    // --- Firebase 설정 ---
+    const firebaseConfig = {
+        apiKey: "AIzaSyB6AzqMt0CByFHu5_YQxltGAK3n8jW_Bmo",
+        authDomain: "imagine-sentences-class.firebaseapp.com",
+        projectId: "imagine-sentences-class",
+        storageBucket: "imagine-sentences-class.firebasestorage.app",
+        messagingSenderId: "863169353628",
+        appId: "1:863169353628:web:b00aa7caedee1090f99a59",
+        measurementId: "G-EQVSNH407N"
+    };
+
+    // --- 전역 변수 및 HTML 요소 ---
+    let db, auth, currentUser;
+    let currentClassId = null; // 현재 입장한 클래스 ID를 저장할 변수
+    let activeListeners = []; // 활성화된 리스너를 저장하여 중복을 방지
+
+    const loginContainer = document.getElementById('login-container');
+    const googleLoginBtn = document.getElementById('google-login-btn');
+    const dashboardContainer = document.getElementById('dashboard-container');
+    const dashboardWelcome = document.getElementById('dashboard-welcome');
+    const logoutBtn = document.getElementById('logout-btn');
+    const newClassNameInput = document.getElementById('new-class-name-input');
+    const addClassBtn = document.getElementById('add-class-btn');
+    const classroomList = document.getElementById('classroom-list');
+    const exportContent = document.getElementById('export-content');
+    const teacherControls = document.getElementById('teacher-controls');
+    // ... 나머지 활동 페이지 요소들은 'enterClassroom' 함수 내에서 사용됩니다.
+
+    // --- 유틸리티 및 UI 함수 ---
+    const showScreen = (screenId) => {
+        loginContainer.classList.add('hidden');
+        dashboardContainer.classList.add('hidden');
+        exportContent.classList.add('hidden');
+        const screenToShow = document.getElementById(screenId);
+        if (screenToShow) screenToShow.classList.remove('hidden');
+    };
+
+    const saveUserToFirestore = async (user) => {
+        const userRef = doc(db, "users", user.uid);
+        await setDoc(userRef, {
+            uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL, lastLogin: serverTimestamp()
+        }, { merge: true });
+    };
+
+    const generateJoinCode = (length = 6) => {
+        const chars = 'ABCDEFGHIJKLMNPQRSTUVWXYZ123456789';
+        let result = '';
+        for (let i = 0; i < length; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
+        return result;
+    };
+
+    // --- 대시보드 관련 함수 ---
+    const setupDashboardUI = (user) => {
+        dashboardWelcome.textContent = `${user.displayName}님, 환영합니다.`;
+        displayUserClasses(user.uid);
+    };
+
+    const displayUserClasses = (userId) => {
+        const q = query(collection(db, "classrooms"), where("teacherId", "==", userId), where("createdAt", "!=", null));
+        const unsubscribe = onSnapshot(q, (snapshot) => {
+            if (snapshot.empty) {
+                classroomList.innerHTML = '<p class="text-gray-500 text-center py-4">아직 생성된 클래스가 없습니다.</p>';
+                return;
+            }
+            classroomList.innerHTML = '';
+            const sortedDocs = snapshot.docs.sort((a, b) => (b.data().createdAt?.seconds || 0) - (a.data().createdAt?.seconds || 0));
+            sortedDocs.forEach(doc => {
+                const classroom = doc.data();
+                const classId = doc.id;
+                const classEl = document.createElement('div');
+                classEl.className = 'flex justify-between items-center bg-gray-50 p-4 rounded-lg border';
+                classEl.innerHTML = `
+                    <div>
+                        <h4 class="font-bold text-lg">${classroom.className}</h4>
+                        <p class="text-sm text-gray-500">참여 코드: <span class="font-mono bg-gray-200 px-2 py-1 rounded">${classroom.joinCode}</span></p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="enter-class-btn bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700" data-id="${classId}">입장</button>
+                        <button class="delete-class-btn bg-red-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-red-700" data-id="${classId}">삭제</button>
+                    </div>
+                `;
+                classroomList.appendChild(classEl);
+            });
+        });
+        activeListeners.push(unsubscribe); // 리스너 정리(cleanup)를 위해 저장
+    };
+
+    // --- [신규] 클래스 입장 함수 ---
+    const enterClassroom = (classId) => {
+        currentClassId = classId;
+        console.log(`Entering class: ${currentClassId}`);
+
+        // 이전 클래스의 리스너가 있다면 모두 정리
+        activeListeners.forEach(unsub => unsub());
+        activeListeners = [];
+
+        // 활동 페이지 보여주기
+        showScreen('export-content');
+
+        // **[매우 중요]**
+        // 이 시점에서만 현재 classId에 해당하는 활동 페이지의 리스너들을 설정합니다.
+        // TODO: 아래 함수들을 classId를 인자로 받도록 수정해야 합니다.
+        // listenForAppState(classId);
+        // listenForSharedImages(classId);
+        // listenForWords(classId);
+        // listenForSentences(classId);
+
+        teacherControls.classList.remove('hidden'); // 입장하면 교사 제어판 활성화
+    };
+
+    // --- 메인 실행 함수 ---
+    const main = async () => {
+        try {
+            initializeApp(firebaseConfig);
+            db = getFirestore();
+            auth = getAuth();
+        } catch (e) {
+            console.error("Firebase init failed:", e);
+            document.body.innerHTML = 'Firebase 초기화에 실패했습니다.';
+            return;
+        }
+
+        // 1. 전역 이벤트 리스너 설정 (한 번만 실행됨)
+        googleLoginBtn.addEventListener('click', () => {
+            signInWithPopup(auth, new GoogleAuthProvider()).catch(error => {
+                if (error.code !== 'auth/popup-closed-by-user') {
+                    console.error("Google sign-in error", error);
+                }
+            });
+        });
+
+        logoutBtn.addEventListener('click', () => signOut(auth));
+
+        addClassBtn.addEventListener('click', async () => {
+            const className = newClassNameInput.value.trim();
+            if (className && currentUser) {
+                try {
+                    await addDoc(collection(db, "classrooms"), {
+                        className: className,
+                        teacherId: currentUser.uid,
+                        joinCode: generateJoinCode(),
+                        createdAt: serverTimestamp()
+                    });
+                    newClassNameInput.value = '';
+                } catch (error) { console.error("Error creating classroom: ", error); }
+            }
+        });
+
+        classroomList.addEventListener('click', (e) => {
+            const target = e.target;
+            const classId = target.dataset.id;
+
+            if (target.closest('.delete-class-btn')) {
+                if (confirm("정말로 이 클래스를 삭제하시겠습니까?")) {
+                    deleteDoc(doc(db, "classrooms", classId));
+                }
+            } else if (target.closest('.enter-class-btn')) {
+                enterClassroom(classId); // 클래스 입장 함수 호출
+            }
+        });
+
+        // 2. 인증 상태 변화 감지
+        onAuthStateChanged(auth, async (user) => {
+            // 리스너 정리
+            activeListeners.forEach(unsub => unsub());
+            activeListeners = [];
+
+            if (user) {
+                currentUser = user;
+                await saveUserToFirestore(user);
+                setupDashboardUI(user);
+                showScreen('dashboard-container');
+            } else {
+                currentUser = null;
+                showScreen('login-container');
+            }
+        });
+    };
+
+    main();
+</script>

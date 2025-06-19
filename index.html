@@ -286,10 +286,12 @@
     <div id="toast-notification" class="toast"></div>
 
     <script type="module">
+        // --- Firebase 모듈 임포트 ---
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
-        import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, getDocs, deleteDoc, writeBatch, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, deleteDoc, where } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // --- Firebase 설정 ---
         const firebaseConfig = {
             apiKey: "AIzaSyB6AzqMt0CByFHu5_YQxltGAK3n8jW_Bmo",
             authDomain: "imagine-sentences-class.firebaseapp.com",
@@ -299,6 +301,12 @@
             appId: "1:863169353628:web:b00aa7caedee1090f99a59",
             measurementId: "G-EQVSNH407N"
         };
+
+        // --- 전역 변수 및 HTML 요소 ---
+        let db, auth, currentUser;
+        let currentClassId = null; // 현재 입장한 클래스 ID를 저장할 변수
+        let activeListeners = []; // 활성화된 리스너를 저장하여 중복을 방지
+
         const loginContainer = document.getElementById('login-container');
         const googleLoginBtn = document.getElementById('google-login-btn');
         const dashboardContainer = document.getElementById('dashboard-container');
@@ -306,376 +314,35 @@
         const logoutBtn = document.getElementById('logout-btn');
         const newClassNameInput = document.getElementById('new-class-name-input');
         const addClassBtn = document.getElementById('add-class-btn');
-        const createClassBtn = document.getElementById('create-class-btn');
         const classroomList = document.getElementById('classroom-list');
+        const exportContent = document.getElementById('export-content');
+        const teacherControls = document.getElementById('teacher-controls');
+        // ... 나머지 활동 페이지 요소들은 'enterClassroom' 함수 내에서 사용됩니다.
 
-        const appId = 'my-classroom-2025-final';
-
-
-        const waitingOverlay = document.getElementById('waiting-overlay'), imageContainer = document.getElementById('image-container'), wordActivitySection = document.getElementById('word-activity-section'), sentenceActivitySection = document.getElementById('sentence-activity-section'), sentencesFeed = document.getElementById('sentences-feed'), exportContent = document.getElementById('export-content'), userInfoDisplay = document.getElementById('user-info'), wordForm = document.getElementById('word-form'), wordInput = document.getElementById('word-input'), sentenceForm = document.getElementById('sentence-form'), sentenceInput = document.getElementById('sentence-input'), authorNameInput = document.getElementById('author-name-input'), wordCloudFeed = document.getElementById('word-cloud-feed'), teacherModeBtn = document.getElementById('teacher-mode-btn'), exportPdfBtn = document.getElementById('export-pdf-btn'), exportCsvBtn = document.getElementById('export-csv-btn'), teacherControls = document.getElementById('teacher-controls'), startActivityBtn = document.getElementById('start-activity-btn'), activateWordInputBtn = document.getElementById('activate-word-input-btn'), activateSentenceInputBtn = document.getElementById('activate-sentence-input-btn'), getAiInspirationBtn = document.getElementById('get-ai-inspiration-btn'), aiHelperDiv = document.getElementById('ai-helper'), aiOutputDiv = document.getElementById('ai-output'), passwordModal = document.getElementById('password-modal'), passwordInput = document.getElementById('password-input'), passwordError = document.getElementById('password-error'), cancelPasswordBtn = document.getElementById('cancel-password-btn'), submitPasswordBtn = document.getElementById('submit-password-btn'), toastNotification = document.getElementById('toast-notification');
-        let db, auth, userId, currentUser, isTeacher = false;
-
-        const showToast = (message, isError = false) => { toastNotification.textContent = message; toastNotification.style.backgroundColor = isError ? '#ef4444' : '#22c55e'; toastNotification.classList.add('show'); setTimeout(() => toastNotification.classList.remove('show'), 3000); };
-        const openPasswordModal = () => { passwordInput.value = ''; passwordError.classList.add('hidden'); passwordModal.classList.remove('hidden'); passwordInput.focus(); };
-        const closePasswordModal = () => passwordModal.classList.add('hidden');
-
-        const checkPassword = async () => {
-            const enteredPassword = passwordInput.value;
-            if (!enteredPassword) { passwordError.textContent = '비밀번호를 입력하세요.'; passwordError.classList.remove('hidden'); return; }
-            try {
-                const response = await fetch('/.netlify/functions/verifyPassword', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: enteredPassword }), });
-                const result = await response.json();
-                if (response.ok && result.success) {
-                    teacherControls.classList.remove('hidden'); teacherModeBtn.classList.add('hidden'); closePasswordModal(); showToast("교사 모드가 활성화되었습니다.");
-                } else { passwordError.textContent = '비밀번호가 틀렸습니다.'; passwordError.classList.remove('hidden'); }
-            } catch (error) { console.error('Password verification error:', error); passwordError.textContent = '확인 중 오류가 발생했습니다.'; passwordError.classList.remove('hidden'); }
-        };
-
-        const updatePhase = async (phase) => { const appStateRef = doc(db, `/artifacts/${appId}/public/data/appState/current`); await setDoc(appStateRef, { currentPhase: phase, updatedAt: serverTimestamp() }); };
-
-        const fetchAndSetNewSharedImages = async () => {
-            if (!isTeacher) return;
-            startActivityBtn.disabled = true; startActivityBtn.textContent = '로딩 중...';
-            try {
-                await updatePhase('waiting');
-                const collectionsToClear = ['sentences', 'words'];
-                const deletePromises = collectionsToClear.map(colName => getDocs(collection(db, `/artifacts/${appId}/public/data/${colName}`)).then(snapshot => snapshot.docs.map(d => deleteDoc(d.ref))));
-                await Promise.all((await Promise.all(deletePromises)).flat());
-                await setDoc(doc(db, `/artifacts/${appId}/public/data/aiHelper`, "current"), { content: null });
-                const fetchRandomImage = async (query) => { const response = await fetch(`/.netlify/functions/fetchImage?query=${query}`); if (!response.ok) throw new Error(`API error`); return await response.json(); };
-                const [imageData1, imageData2] = await Promise.all([fetchRandomImage('inspiration'), fetchRandomImage('creativity')]);
-                if (imageData1 && imageData2) {
-                    await setDoc(doc(db, `/artifacts/${appId}/public/data/sharedImages`, "current"), { url1: imageData1.urls.regular, alt1: imageData1.alt_description, url2: imageData2.urls.regular, alt2: imageData2.alt_description, updatedAt: serverTimestamp() });
-                    await updatePhase('images_only');
-                    showToast("새로운 활동이 시작되었습니다!");
-                } else { showToast("이미지 로딩 실패", true); }
-            } catch (error) {
-                console.error("Error starting activity:", error); showToast("초기화 중 오류 발생", true);
-            } finally { startActivityBtn.disabled = false; startActivityBtn.textContent = '1. 활동 시작'; }
-        };
-
-        const getAiInspiration = async () => {
-            if (!isTeacher) return;
-            getAiInspirationBtn.disabled = true; getAiInspirationBtn.textContent = 'AI 생각 중...';
-            aiHelperDiv.classList.remove('hidden'); aiOutputDiv.innerHTML = '<p class="text-gray-600">AI에게 물어보고 있습니다...</p>';
-            try {
-                const imageDoc = await getDoc(doc(db, `/artifacts/${appId}/public/data/sharedImages`, "current"));
-                if (!imageDoc.exists()) throw new Error("먼저 사진을 불러와주세요.");
-                const { alt1, alt2 } = imageDoc.data();
-                const response = await fetch('/.netlify/functions/getAiInspiration', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ alt1, alt2 }) });
-                if (!response.ok) throw new Error(`AI 함수 호출 실패`);
-                const result = await response.json();
-                const aiResponseText = result.candidates?.[0]?.content?.parts?.[0]?.text;
-                if (aiResponseText) {
-                    await setDoc(doc(db, `/artifacts/${appId}/public/data/aiHelper`, "current"), { content: aiResponseText, updatedAt: serverTimestamp() });
-                } else { throw new Error(result.error || "AI로부터 유효한 응답을 받지 못했습니다."); }
-            } catch (error) {
-                console.error("AI Inspiration Error:", error); aiOutputDiv.innerHTML = `<p class="text-red-500">오류: ${error.message}</p>`;
-            } finally { getAiInspirationBtn.disabled = false; getAiInspirationBtn.textContent = 'AI 영감 얻기'; }
-        };
-
-        const listenForAppState = () => {
-            const appStateRef = doc(db, `/artifacts/${appId}/public/data/appState/current`);
-            onSnapshot(appStateRef, (docSnapshot) => {
-                const phase = docSnapshot.exists() ? docSnapshot.data().currentPhase : 'waiting';
-                imageContainer.classList.add('hidden'); wordActivitySection.classList.add('hidden'); sentenceActivitySection.classList.add('hidden');
-                if (isTeacher) { activateWordInputBtn.disabled = true; activateSentenceInputBtn.disabled = true; }
-                switch (phase) {
-                    case 'images_only': imageContainer.classList.remove('hidden'); if (isTeacher) activateWordInputBtn.disabled = false; break;
-                    case 'word_input_active': imageContainer.classList.remove('hidden'); wordActivitySection.classList.remove('hidden'); if (isTeacher) activateSentenceInputBtn.disabled = false; break;
-                    case 'sentence_input_active': imageContainer.classList.remove('hidden'); wordActivitySection.classList.remove('hidden'); sentenceActivitySection.classList.remove('hidden'); break;
-                    // case 'waiting': default: if (!isTeacher) { waitingOverlay.classList.remove('hidden'); } break;
-                }
-            });
-        };
-
-        const listenForSharedImages = () => {
-            const imageDocRef = doc(db, `/artifacts/${appId}/public/data/sharedImages`, "current");
-            onSnapshot(imageDocRef, (doc) => {
-                imageContainer.innerHTML = '';
-                if (doc.exists()) {
-                    const data = doc.data();
-                    const img1 = document.createElement('img'); img1.src = data.url1; img1.alt = data.alt1 || 'Shared image 1'; img1.className = 'w-full h-full object-cover rounded-lg shadow-md';
-                    const img2 = document.createElement('img'); img2.src = data.url2; img2.alt = data.alt2 || 'Shared image 2'; img2.className = 'w-full h-full object-cover rounded-lg shadow-md';
-                    imageContainer.appendChild(img1); imageContainer.appendChild(img2);
-                } else { imageContainer.innerHTML = `<div class="bg-gray-200 aspect-ratio-4/3 rounded-lg flex items-center justify-center p-4 text-center"><p class="text-gray-500">선생님이 활동을 시작하면 사진이 나타납니다.</p></div><div class="bg-gray-200 aspect-ratio-4/3 rounded-lg flex items-center justify-center p-4 text-center"><p class="text-gray-500">여기에 사진이 표시됩니다.</p></div>`; }
-            });
-        };
-
-        // ----- START: ADDED FUNCTION -----
-        // AI 도우미 데이터를 실시간으로 감지하고 UI에 반영하는 함수
-        const listenForAiHelper = () => {
-            const aiHelperDocRef = doc(db, `/artifacts/${appId}/public/data/aiHelper/current`);
-            onSnapshot(aiHelperDocRef, (doc) => {
-                if (doc.exists() && doc.data().content) {
-                    let content = doc.data().content;
-                    let htmlOutput = '';
-
-                    try {
-                        // AI 응답에 포함될 수 있는 마크다운 코드 블록(```json ... ```)을 제거합니다.
-                        if (content.startsWith("```json")) {
-                            content = content.substring(7, content.length - 3).trim();
-                        } else if (content.startsWith("```")) {
-                            content = content.substring(3, content.length - 3).trim();
-                        }
-
-                        const aiData = JSON.parse(content);
-
-                        if (aiData.exampleSentence && aiData.theme1 && aiData.theme2) {
-                            htmlOutput += '<h4 class="text-md font-bold text-purple-700 mb-2">🔑 관련 키워드</h4>';
-                            htmlOutput += '<div class="flex flex-wrap gap-2">';
-
-                            const allKeywords = [...aiData.theme1, ...aiData.theme2];
-                            allKeywords.forEach(keyword => {
-                                htmlOutput += `<span class="keyword-tag">${keyword}</span>`;
-                            });
-                            htmlOutput += '</div>';
-                            htmlOutput += `
-                        <h4 class="text-md font-bold text-purple-700 mb-2">💡 AI 추천 문장</h4>
-                        <p class="mb-4 p-3 bg-white rounded-md shadow-sm">${aiData.exampleSentence}</p>
-                    `;
-                            aiOutputDiv.innerHTML = htmlOutput;
-                        } else {
-                            throw new Error("Invalid AI data structure.");
-                        }
-                    } catch (e) {
-                        console.error("Could not parse AI helper content, displaying as raw text:", e);
-                        // 오류 발생 시에도 원본 텍스트를 보여주어 어떤 내용이 왔는지 확인할 수 있도록 합니다.
-                        aiOutputDiv.innerHTML = `<p class="text-gray-700 whitespace-pre-wrap">${doc.data().content}</p>`;
-                    }
-
-                    aiHelperDiv.classList.remove('hidden');
-                } else {
-                    aiHelperDiv.classList.add('hidden');
-                }
-            });
-        };
-        // ----- END: ADDED FUNCTION -----
-
-        const listenForWords = () => { const wordsCol = collection(db, `/artifacts/${appId}/public/data/words`); onSnapshot(query(wordsCol), (snapshot) => { if (snapshot.empty) { wordCloudFeed.innerHTML = '<p class="text-gray-500 text-center w-full">아직 제출된 낱말이 없습니다.</p>'; return; } wordCloudFeed.innerHTML = ''; const words = snapshot.docs.map(doc => doc.data().text); const wordCounts = words.reduce((acc, word) => { acc[word] = (acc[word] || 0) + 1; return acc; }, {}); const maxCount = Math.max(...Object.values(wordCounts)); for (const [word, count] of Object.entries(wordCounts)) { const el = document.createElement('span'); el.className = 'keyword-tag'; el.textContent = word; const fontSize = 1 + (count / maxCount); el.style.fontSize = `${Math.min(fontSize, 2)}rem`; el.style.opacity = 0.6 + (count / maxCount) * 0.4; wordCloudFeed.appendChild(el); } }); };
-        const listenForSentences = () => {
-            const sentencesCol = collection(db, `/artifacts/${appId}/public/data/sentences`);
-            onSnapshot(query(sentencesCol), (snapshot) => {
-                // 1. 스크롤 위치를 업데이트하기 전에, 현재 사용자가 스크롤을 맨 아래에 두었는지 확인합니다.
-                const scrollBuffer = 10; // 약간의 오차를 허용하기 위한 버퍼
-                const isScrolledToBottom = sentencesFeed.scrollHeight - sentencesFeed.clientHeight <= sentencesFeed.scrollTop + scrollBuffer;
-
-                if (snapshot.empty) {
-                    sentencesFeed.innerHTML = '<p class="text-gray-500 text-center">아직 제출된 문장이 없습니다.</p>';
-                    return;
-                }
-
-                const sentences = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })).sort((a, b) => (a.createdAt?.seconds || 0) - (b.createdAt?.seconds || 0));
-                sentencesFeed.innerHTML = '';
-                sentences.forEach(data => {
-                    const el = document.createElement('div');
-                    el.className = 'bg-white p-3 rounded-lg border border-gray-200 shadow-sm';
-                    const authorDisplay = data.authorName ? `작성자: ${data.authorName}` : `익명`;
-                    const likesBy = data.likesBy || [];
-                    const likeCount = likesBy.length;
-                    const userHasLiked = userId && likesBy.includes(userId);
-                    el.innerHTML = `<p class="text-gray-800">${data.text}</p><div class="flex justify-between items-center mt-2 pt-2 border-t border-gray-100"><span class="text-xs text-gray-500">${authorDisplay}</span><button class="like-btn ${userHasLiked ? 'liked' : ''}" data-id="${data.id}">❤️ <span class="like-count">${likeCount}</span></button></div>`;
-                    sentencesFeed.appendChild(el);
-                });
-
-                // 2. 1번에서 확인한 결과, 사용자가 맨 아래에 있었다면 새로운 내용이 추가된 후에도 맨 아래로 스크롤을 이동시킵니다.
-                if (isScrolledToBottom) {
-                    sentencesFeed.scrollTop = sentencesFeed.scrollHeight;
-                }
-            });
-        };
-        const handleWordFormSubmit = async (event) => {
-            event.preventDefault();
-            const wordText = wordInput.value.trim(); const authorName = authorNameInput.value.trim();
-            // if (!authorName) { showToast("이름을 입력해주세요!", true); return; }
-            if (!wordText) { showToast("낱말을 입력해주세요!", true); return; }
-            if (userId) { try { await addDoc(collection(db, `/artifacts/${appId}/public/data/words`), { text: wordText, createdAt: serverTimestamp(), authorId: userId, }); wordInput.value = ''; } catch (error) { console.error("Error submitting word:", error); showToast("낱말 제출 중 오류가 발생했습니다.", true); } }
-        };
-        const handleFormSubmit = async (event) => {
-            event.preventDefault();
-            const sentenceText = sentenceInput.value.trim(); const authorName = authorNameInput.value.trim();
-            if (!authorName) { showToast("이름을 입력해주세요!", true); return; }
-            if (!sentenceText) { showToast("문장을 입력해주세요!", true); return; }
-            if (userId) { try { await addDoc(collection(db, `/artifacts/${appId}/public/data/sentences`), { text: sentenceText, authorName: authorName, createdAt: serverTimestamp(), authorId: userId, likesBy: [] }); sentenceInput.value = ''; } catch (error) { console.error("Error submitting sentence:", error); showToast("문장 제출 중 오류가 발생했습니다.", true); } }
-        };
-        const handleLikeClick = async (e) => { const button = e.target.closest('.like-btn'); if (!button || !userId) return; const sentenceId = button.dataset.id; const sentenceRef = doc(db, `/artifacts/${appId}/public/data/sentences`, sentenceId); try { const docSnap = await getDoc(sentenceRef); if (docSnap.exists()) { const likesBy = docSnap.data().likesBy || []; if (likesBy.includes(userId)) { await updateDoc(sentenceRef, { likesBy: arrayRemove(userId) }); } else { await updateDoc(sentenceRef, { likesBy: arrayUnion(userId) }); } } } catch (error) { console.error("Error updating likes:", error); showToast("공감 실패!", true); } };
-        async function exportToCSV() {
-            if (!isTeacher) return;
-            showToast("CSV 파일 생성 중...");
-            try {
-                const sentencesCol = collection(db, `/artifacts/${appId}/public/data/sentences`);
-                const snapshot = await getDocs(query(sentencesCol));
-                let csvContent = "data:text/csv;charset=utf-8,작성자,문장,공감 수\n";
-                snapshot.forEach(doc => {
-                    const data = doc.data();
-                    const author = data.authorName || '익명';
-                    const sentence = `"${data.text.replace(/"/g, '""')}"`; // Handle quotes
-                    const likes = (data.likesBy || []).length;
-                    csvContent += [author, sentence, likes].join(",") + "\n";
-                });
-                const encodedUri = encodeURI(csvContent);
-                const link = document.createElement("a");
-                link.setAttribute("href", encodedUri);
-                link.setAttribute("download", `수업결과_${new Date().toISOString().slice(0, 10)}.csv`);
-                document.body.appendChild(link);
-                link.click();
-                document.body.removeChild(link);
-            } catch (error) {
-                console.error("CSV Export Error: ", error);
-                showToast("CSV 저장 중 오류 발생", true);
-            }
-        }
-
-        function exportToPDF() {
-            if (!isTeacher) return;
-            showToast("PDF 파일 생성 중... 잠시만 기다려주세요.");
-            // Temporarily hide elements not for export
-            document.querySelectorAll('.print-hide').forEach(el => el.classList.add('hidden'));
-
-            html2canvas(exportContent, {
-                scale: 2, // Higher scale for better quality
-                useCORS: true // Important for external images
-            }).then(canvas => {
-                const imgData = canvas.toDataURL('image/png');
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('p', 'mm', 'a4');
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const pdfHeight = pdf.internal.pageSize.getHeight();
-                const canvasWidth = canvas.width;
-                const canvasHeight = canvas.height;
-                const ratio = canvasWidth / canvasHeight;
-                const width = pdfWidth - 20; // with margin
-                const height = width / ratio;
-
-                pdf.addImage(imgData, 'PNG', 10, 10, width, height);
-                pdf.save(`수업결과_${new Date().toISOString().slice(0, 10)}.pdf`);
-
-                // Show hidden elements again
-                document.querySelectorAll('.print-hide').forEach(el => el.classList.remove('hidden'));
-            }).catch(error => {
-                console.error("PDF Export Error: ", error);
-                showToast("PDF 저장 중 오류 발생", true);
-                document.querySelectorAll('.print-hide').forEach(el => el.classList.remove('hidden'));
-            });
-        }
-        // --- 로그인/로그아웃 처리 함수 ---
-        // --- 화면 전환 함수 ---
+        // --- 유틸리티 및 UI 함수 ---
         const showScreen = (screenId) => {
             loginContainer.classList.add('hidden');
             dashboardContainer.classList.add('hidden');
             exportContent.classList.add('hidden');
-
             const screenToShow = document.getElementById(screenId);
-            if (screenToShow) {
-                screenToShow.classList.remove('hidden');
-            }
+            if (screenToShow) screenToShow.classList.remove('hidden');
         };
 
-        // --- Firestore 사용자 정보 저장/업데이트 함수 ---
         const saveUserToFirestore = async (user) => {
             const userRef = doc(db, "users", user.uid);
-            const userData = {
-                uid: user.uid,
-                email: user.email,
-                displayName: user.displayName,
-                photoURL: user.photoURL,
-                lastLogin: serverTimestamp() // 마지막 로그인 시간 기록
-            };
-            await setDoc(userRef, userData, { merge: true }); // 없으면 생성, 있으면 병합
+            await setDoc(userRef, {
+                uid: user.uid, email: user.email, displayName: user.displayName, photoURL: user.photoURL, lastLogin: serverTimestamp()
+            }, { merge: true });
         };
+
         const generateJoinCode = (length = 6) => {
-            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+            const chars = 'ABCDEFGHIJKLMNPQRSTUVWXYZ123456789';
             let result = '';
-            for (let i = 0; i < length; i++) {
-                result += chars.charAt(Math.floor(Math.random() * chars.length));
-            }
+            for (let i = 0; i < length; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
             return result;
-            // 참고: 이 방식은 코드가 중복될 수 있는 아주 희박한 가능성이 있습니다.
-            // 사용자가 매우 많은 서비스에서는 DB를 확인하여 중복을 피하는 로직이 필요합니다.
         };
 
-        // --- [신규] 클래스 삭제 함수 ---
-        const deleteClassroom = async (classId) => {
-            if (confirm("정말로 이 클래스를 삭제하시겠습니까? 관련된 모든 데이터가 사라지며, 되돌릴 수 없습니다.")) {
-                try {
-                    // TODO: Firestore의 하위 컬렉션(sentences, words 등)은 자동으로 삭제되지 않습니다.
-                    // 향후 Cloud Function을 사용하여 관련 데이터를 모두 삭제하는 기능 추가를 권장합니다.
-                    await deleteDoc(doc(db, "classrooms", classId));
-                    alert("클래스가 삭제되었습니다.");
-                } catch (error) {
-                    console.error("Error deleting classroom: ", error);
-                    alert("클래스 삭제 중 오류가 발생했습니다.");
-                }
-            }
-        };
-
-
-        // // --- 대시보드 기능 함수 ---
-        // const setupDashboard = (user) => {
-        //     dashboardWelcome.textContent = `${user.displayName}님, 환영합니다.`;
-
-        //     // 로그아웃 버튼 이벤트
-        //     logoutBtn.addEventListener('click', () => signOut(auth));
-
-        //     // --- [수정됨] 새 클래스 만들기 버튼 이벤트 ---
-        //     createClassBtn.addEventListener('click', async () => {
-        //         const className = prompt("새 클래스의 이름을 입력해주세요:", "예: 6학년 창의적 글쓰기");
-
-        //         if (className && className.trim() !== "") {
-        //             try {
-        //                 const joinCode = generateJoinCode();
-
-        //                 // Firestore 'classrooms' 컬렉션에 새 문서 추가
-        //                 await addDoc(collection(db, "classrooms"), {
-        //                     className: className.trim(),
-        //                     teacherId: user.uid, // 현재 로그인한 교사의 ID
-        //                     joinCode: joinCode,
-        //                     createdAt: serverTimestamp()
-        //                 });
-
-        //                 alert(`'${className}' 클래스가 생성되었습니다!`);
-
-        //             } catch (error) {
-        //                 console.error("Error creating classroom: ", error);
-        //                 alert("클래스 생성 중 오류가 발생했습니다.");
-        //             }
-        //         } else {
-        //             alert("클래스 이름이 유효하지 않습니다.");
-        //         }
-        //     });
-
-        //     // 사용자의 클래스 목록 실시간으로 보여주기
-        //     displayUserClasses(user.uid);
-        // };
-
-        // const displayUserClasses = (userId) => {
-        //     const q = query(collection(db, "classrooms"), where("teacherId", "==", userId));
-
-        //     onSnapshot(q, (snapshot) => {
-        //         if (snapshot.empty) {
-        //             classroomList.innerHTML = '<p class="text-gray-500 text-center py-4">아직 생성된 클래스가 없습니다.</p>';
-        //             return;
-        //         }
-
-        //         classroomList.innerHTML = ''; // 목록 초기화
-        //         snapshot.forEach(doc => {
-        //             const classroom = doc.data();
-        //             const classEl = document.createElement('div');
-        //             classEl.className = 'flex justify-between items-center bg-gray-50 p-4 rounded-lg border';
-        //             classEl.innerHTML = `
-        //             <div>
-        //                 <h4 class="font-bold text-lg">${classroom.className}</h4>
-        //                 <p class="text-sm text-gray-500">참여 코드: <span class="font-mono bg-gray-200 px-2 py-1 rounded">${classroom.joinCode}</span></p>
-        //             </div>
-        //             <button class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">입장</button>
-        //         `;
-        //             // TODO: '입장' 버튼 클릭 시 해당 클래스의 활동 페이지로 이동하는 로직 추가
-        //             classroomList.appendChild(classEl);
-        //         });
-        //     });
-        // };
-
-        // --- [수정됨] 대시보드 UI 업데이트 및 클래스 목록 표시 ---
+        // --- 대시보드 관련 함수 ---
         const setupDashboardUI = (user) => {
             dashboardWelcome.textContent = `${user.displayName}님, 환영합니다.`;
             displayUserClasses(user.uid);
@@ -683,15 +350,14 @@
 
         const displayUserClasses = (userId) => {
             const q = query(collection(db, "classrooms"), where("teacherId", "==", userId), where("createdAt", "!=", null));
-
-            onSnapshot(q, (snapshot) => {
+            const unsubscribe = onSnapshot(q, (snapshot) => {
                 if (snapshot.empty) {
                     classroomList.innerHTML = '<p class="text-gray-500 text-center py-4">아직 생성된 클래스가 없습니다.</p>';
                     return;
                 }
-
                 classroomList.innerHTML = '';
-                snapshot.docs.sort((a, b) => b.data().createdAt - a.data().createdAt).forEach(doc => {
+                const sortedDocs = snapshot.docs.sort((a, b) => (b.data().createdAt?.seconds || 0) - (a.data().createdAt?.seconds || 0));
+                sortedDocs.forEach(doc => {
                     const classroom = doc.data();
                     const classId = doc.id;
                     const classEl = document.createElement('div');
@@ -709,82 +375,55 @@
                     classroomList.appendChild(classEl);
                 });
             });
+            activeListeners.push(unsubscribe); // 리스너 정리(cleanup)를 위해 저장
         };
 
+        // --- [신규] 클래스 입장 함수 ---
+        const enterClassroom = (classId) => {
+            currentClassId = classId;
+            console.log(`Entering class: ${currentClassId}`);
+
+            // 이전 클래스의 리스너가 있다면 모두 정리
+            activeListeners.forEach(unsub => unsub());
+            activeListeners = [];
+
+            // 활동 페이지 보여주기
+            showScreen('export-content');
+
+            // **[매우 중요]**
+            // 이 시점에서만 현재 classId에 해당하는 활동 페이지의 리스너들을 설정합니다.
+            // TODO: 아래 함수들을 classId를 인자로 받도록 수정해야 합니다.
+            // listenForAppState(classId);
+            // listenForSharedImages(classId);
+            // listenForWords(classId);
+            // listenForSentences(classId);
+
+            teacherControls.classList.remove('hidden'); // 입장하면 교사 제어판 활성화
+        };
+
+        // --- 메인 실행 함수 ---
         const main = async () => {
             try {
                 initializeApp(firebaseConfig);
-                db = getFirestore(); auth = getAuth();
-            } catch (e) { console.error("Firebase init failed:", e); return; }
+                db = getFirestore();
+                auth = getAuth();
+            } catch (e) {
+                console.error("Firebase init failed:", e);
+                document.body.innerHTML = 'Firebase 초기화에 실패했습니다.';
+                return;
+            }
 
-            onAuthStateChanged(auth, async (user) => {
-                if (user) {
-                    // 사용자가 로그인한 경우
-                    // userId = user.uid;
-                    // showAppScreen(user);
-
-                    // userId = user.uid; userInfoDisplay.textContent = '상상하며 글쓰기';
-                    // 사용자가 로그인한 경우
-                    currentUser = user;
-                    await saveUserToFirestore(user); // Firestore에 사용자 정보 저장
-                    setupDashboardUI(user); // 대시보드 UI 업데이트
-                    showScreen('dashboard-container'); // 대시보드 화면 보여주기
-                    const urlParams = new URLSearchParams(window.location.search);
-                    isTeacher = urlParams.get('teacher') === 'true';
-
-                    // 모든 리스너(listener) 함수들을 정상적으로 호출
-                    listenForAppState();
-                    listenForSharedImages();
-                    listenForWords();
-                    listenForSentences();
-                    listenForAiHelper(); // 정의된 함수를 호출
-
-                    wordForm.addEventListener('submit', handleWordFormSubmit);
-                    sentenceForm.addEventListener('submit', handleFormSubmit);
-                    sentencesFeed.addEventListener('click', handleLikeClick);
-                    submitPasswordBtn.addEventListener('click', checkPassword);
-                    cancelPasswordBtn.addEventListener('click', closePasswordModal);
-                    passwordInput.addEventListener('keydown', (e) => { if (e.key === 'Enter') checkPassword(); });
-                    passwordModal.addEventListener('click', (e) => { if (e.target === passwordModal) closePasswordModal(); });
-
-                    console.log(`${user.displayName} 사용자가 로그인했습니다.`);
-
-                    if (isTeacher) {
-                        waitingOverlay.classList.add('hidden');
-                        openPasswordModal();
-
-                        startActivityBtn.addEventListener('click', fetchAndSetNewSharedImages);
-                        activateWordInputBtn.addEventListener('click', () => updatePhase('word_input_active'));
-                        activateSentenceInputBtn.addEventListener('click', () => updatePhase('sentence_input_active'));
-                        getAiInspirationBtn.addEventListener('click', getAiInspiration);
-                        exportPdfBtn.addEventListener('click', exportToPDF); // PDF, CSV 내보내기 함수는 구현되지 않아 주석 처리
-                        exportCsvBtn.addEventListener('click', exportToCSV);
-                    } else {
-                        teacherModeBtn.addEventListener('click', openPasswordModal);
+            // 1. 전역 이벤트 리스너 설정 (한 번만 실행됨)
+            googleLoginBtn.addEventListener('click', () => {
+                signInWithPopup(auth, new GoogleAuthProvider()).catch(error => {
+                    if (error.code !== 'auth/popup-closed-by-user') {
+                        console.error("Google sign-in error", error);
                     }
-                } else {
-                    // 사용자가 로그아웃한 경우
-                    // userId = null;
-                    // showLoginScreen();
-                    // console.log("사용자가 로그아웃했습니다.");
-                    // try { await signInAnonymously(auth); } catch (error) { console.error("Anonymous sign-in failed", error); }
-                    // 사용자가 로그아웃한 경우
-                    currentUser = null;
-                    showScreen('login-container'); // 로그인 화면 보여주기
-                }
+                });
             });
-            // --- ADDED: 구글 로그인 버튼 이벤트 리스너 ---
-            googleLoginBtn.addEventListener('click', async () => {
-                const provider = new GoogleAuthProvider();
-                try {
-                    await signInWithPopup(auth, provider);
-                    // 로그인 성공 시 onAuthStateChanged가 자동으로 감지하여 처리합니다.
-                } catch (error) {
-                    console.error("Google sign-in error", error);
-                    showToast("구글 로그인 중 오류가 발생했습니다.", true);
-                }
-            });
+
             logoutBtn.addEventListener('click', () => signOut(auth));
+
             addClassBtn.addEventListener('click', async () => {
                 const className = newClassNameInput.value.trim();
                 if (className && currentUser) {
@@ -795,28 +434,38 @@
                             joinCode: generateJoinCode(),
                             createdAt: serverTimestamp()
                         });
-                        newClassNameInput.value = ''; // 입력창 비우기
-                    } catch (error) {
-                        console.error("Error creating classroom: ", error);
-                        alert("클래스 생성 중 오류가 발생했습니다.");
-                    }
-                } else {
-                    alert("클래스 이름을 입력해주세요.");
+                        newClassNameInput.value = '';
+                    } catch (error) { console.error("Error creating classroom: ", error); }
                 }
             });
 
-            // --- [신규] 이벤트 위임을 사용한 클래스 목록 이벤트 처리 ---
             classroomList.addEventListener('click', (e) => {
                 const target = e.target;
-                // 삭제 버튼 클릭 시
-                if (target.classList.contains('delete-class-btn')) {
-                    const classId = target.dataset.id;
-                    deleteClassroom(classId);
+                const classId = target.dataset.id;
+
+                if (target.closest('.delete-class-btn')) {
+                    if (confirm("정말로 이 클래스를 삭제하시겠습니까?")) {
+                        deleteDoc(doc(db, "classrooms", classId));
+                    }
+                } else if (target.closest('.enter-class-btn')) {
+                    enterClassroom(classId); // 클래스 입장 함수 호출
                 }
-                // 입장 버튼 클릭 시 (다음 단계에서 구현)
-                if (target.classList.contains('enter-class-btn')) {
-                    const classId = target.dataset.id;
-                    alert(`클래스 ${classId}에 입장합니다. (다음 단계 구현)`);
+            });
+
+            // 2. 인증 상태 변화 감지
+            onAuthStateChanged(auth, async (user) => {
+                // 리스너 정리
+                activeListeners.forEach(unsub => unsub());
+                activeListeners = [];
+
+                if (user) {
+                    currentUser = user;
+                    await saveUserToFirestore(user);
+                    setupDashboardUI(user);
+                    showScreen('dashboard-container');
+                } else {
+                    currentUser = null;
+                    showScreen('login-container');
                 }
             });
         };
