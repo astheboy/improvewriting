@@ -144,7 +144,30 @@
             <span class="font-semibold text-gray-700">Google 계정으로 로그인</span>
         </button>
     </div>
+    <div id="dashboard-container" class="w-full max-w-4xl bg-white rounded-2xl shadow-xl p-8 space-y-6 hidden">
+        <div class="flex justify-between items-center border-b pb-4">
+            <div>
+                <h2 id="dashboard-welcome" class="text-3xl font-bold text-gray-800">대시보드</h2>
+                <p class="text-gray-600">나의 클래스를 만들고 관리하세요.</p>
+            </div>
+            <button id="logout-btn"
+                class="bg-gray-200 hover:bg-gray-300 text-sm text-gray-700 font-bold py-2 px-4 rounded-lg">로그아웃</button>
+        </div>
 
+        <div>
+            <button id="create-class-btn"
+                class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition-colors shadow-md">
+                + 새 클래스 만들기
+            </button>
+        </div>
+
+        <div>
+            <h3 class="text-xl font-bold text-gray-700 mb-4">내 클래스 목록</h3>
+            <div id="classroom-list" class="space-y-3">
+                <p class="text-gray-500 text-center py-4">아직 생성된 클래스가 없습니다.</p>
+            </div>
+        </div>
+    </div>
     <div id="export-content"
         class="w-full max-w-5xl bg-white rounded-2xl shadow-xl p-6 md:p-8 space-y-6 relative hidden">
 
@@ -270,13 +293,19 @@
             appId: "1:863169353628:web:b00aa7caedee1090f99a59",
             measurementId: "G-EQVSNH407N"
         };
+        const loginContainer = document.getElementById('login-container');
+        const googleLoginBtn = document.getElementById('google-login-btn');
+        const dashboardContainer = document.getElementById('dashboard-container');
+        const dashboardWelcome = document.getElementById('dashboard-welcome');
+        const logoutBtn = document.getElementById('logout-btn');
+        const createClassBtn = document.getElementById('create-class-btn');
+        const classroomList = document.getElementById('classroom-list');
+
         const appId = 'my-classroom-2025-final';
 
-        const loginContainer = document.getElementById('login-container'); // ADDED
-        const googleLoginBtn = document.getElementById('google-login-btn'); // ADDED
 
         const waitingOverlay = document.getElementById('waiting-overlay'), imageContainer = document.getElementById('image-container'), wordActivitySection = document.getElementById('word-activity-section'), sentenceActivitySection = document.getElementById('sentence-activity-section'), sentencesFeed = document.getElementById('sentences-feed'), exportContent = document.getElementById('export-content'), userInfoDisplay = document.getElementById('user-info'), wordForm = document.getElementById('word-form'), wordInput = document.getElementById('word-input'), sentenceForm = document.getElementById('sentence-form'), sentenceInput = document.getElementById('sentence-input'), authorNameInput = document.getElementById('author-name-input'), wordCloudFeed = document.getElementById('word-cloud-feed'), teacherModeBtn = document.getElementById('teacher-mode-btn'), exportPdfBtn = document.getElementById('export-pdf-btn'), exportCsvBtn = document.getElementById('export-csv-btn'), teacherControls = document.getElementById('teacher-controls'), startActivityBtn = document.getElementById('start-activity-btn'), activateWordInputBtn = document.getElementById('activate-word-input-btn'), activateSentenceInputBtn = document.getElementById('activate-sentence-input-btn'), getAiInspirationBtn = document.getElementById('get-ai-inspiration-btn'), aiHelperDiv = document.getElementById('ai-helper'), aiOutputDiv = document.getElementById('ai-output'), passwordModal = document.getElementById('password-modal'), passwordInput = document.getElementById('password-input'), passwordError = document.getElementById('password-error'), cancelPasswordBtn = document.getElementById('cancel-password-btn'), submitPasswordBtn = document.getElementById('submit-password-btn'), toastNotification = document.getElementById('toast-notification');
-        let db, auth, userId, isTeacher = false;
+        let db, auth, userId, currentUser, isTeacher = false;
 
         const showToast = (message, isError = false) => { toastNotification.textContent = message; toastNotification.style.backgroundColor = isError ? '#ef4444' : '#22c55e'; toastNotification.classList.add('show'); setTimeout(() => toastNotification.classList.remove('show'), 3000); };
         const openPasswordModal = () => { passwordInput.value = ''; passwordError.classList.add('hidden'); passwordModal.classList.remove('hidden'); passwordInput.focus(); };
@@ -522,21 +551,72 @@
             });
         }
         // --- 로그인/로그아웃 처리 함수 ---
-        const showLoginScreen = () => {
-            loginContainer.classList.remove('hidden');
+        // --- 화면 전환 함수 ---
+        const showScreen = (screenId) => {
+            loginContainer.classList.add('hidden');
+            dashboardContainer.classList.add('hidden');
             exportContent.classList.add('hidden');
+
+            const screenToShow = document.getElementById(screenId);
+            if (screenToShow) {
+                screenToShow.classList.remove('hidden');
+            }
         };
 
-        const showAppScreen = (user) => {
-            loginContainer.classList.add('hidden');
-            exportContent.classList.remove('hidden');
-            // 사용자 정보 및 로그아웃 버튼 표시
-            userInfoDisplay.innerHTML = `
-                <span class="font-semibold">${user.displayName}님, 환영합니다.</span>
-                <button id="logout-btn" class="bg-gray-200 hover:bg-gray-300 text-xs text-gray-700 font-bold py-1 px-3 rounded-lg">로그아웃</button>
-            `;
-            document.getElementById('logout-btn').addEventListener('click', () => {
-                signOut(auth);
+        // --- Firestore 사용자 정보 저장/업데이트 함수 ---
+        const saveUserToFirestore = async (user) => {
+            const userRef = doc(db, "users", user.uid);
+            const userData = {
+                uid: user.uid,
+                email: user.email,
+                displayName: user.displayName,
+                photoURL: user.photoURL,
+                lastLogin: serverTimestamp() // 마지막 로그인 시간 기록
+            };
+            await setDoc(userRef, userData, { merge: true }); // 없으면 생성, 있으면 병합
+        };
+
+        // --- 대시보드 기능 함수 ---
+        const setupDashboard = (user) => {
+            dashboardWelcome.textContent = `${user.displayName}님, 환영합니다.`;
+
+            // 로그아웃 버튼 이벤트
+            logoutBtn.addEventListener('click', () => signOut(auth));
+
+            // 새 클래스 만들기 버튼 이벤트 (다음 단계에서 구현)
+            createClassBtn.addEventListener('click', () => {
+                // TODO: 다음 단계에서 클래스 생성 로직 구현
+                alert('새 클래스 만들기 기능은 다음 단계에서 구현됩니다.');
+            });
+
+            // 사용자의 클래스 목록 실시간으로 보여주기
+            displayUserClasses(user.uid);
+        };
+
+        const displayUserClasses = (userId) => {
+            const q = query(collection(db, "classrooms"), where("teacherId", "==", userId));
+
+            onSnapshot(q, (snapshot) => {
+                if (snapshot.empty) {
+                    classroomList.innerHTML = '<p class="text-gray-500 text-center py-4">아직 생성된 클래스가 없습니다.</p>';
+                    return;
+                }
+
+                classroomList.innerHTML = ''; // 목록 초기화
+                snapshot.forEach(doc => {
+                    const classroom = doc.data();
+                    const classEl = document.createElement('div');
+                    classEl.className = 'flex justify-between items-center bg-gray-50 p-4 rounded-lg border';
+                    classEl.innerHTML = `
+                    <div>
+                        <h4 class="font-bold text-lg">${classroom.className}</h4>
+                        <p class="text-sm text-gray-500">참여 코드: <span class="font-mono bg-gray-200 px-2 py-1 rounded">${classroom.joinCode}</span></p>
+                    </div>
+                    <button class="bg-blue-600 text-white font-bold py-2 px-4 rounded-lg hover:bg-blue-700">입장</button>
+                `;
+                    // TODO: '입장' 버튼 클릭 시 해당 클래스의 활동 페이지로 이동하는 로직 추가
+                    classroomList.appendChild(classEl);
+                });
             });
         };
         const main = async () => {
@@ -548,11 +628,15 @@
             onAuthStateChanged(auth, async (user) => {
                 if (user) {
                     // 사용자가 로그인한 경우
-                    userId = user.uid;
-                    showAppScreen(user);
+                    // userId = user.uid;
+                    // showAppScreen(user);
 
-                    userId = user.uid; userInfoDisplay.textContent = '상상하며 글쓰기';
-
+                    // userId = user.uid; userInfoDisplay.textContent = '상상하며 글쓰기';
+                    // 사용자가 로그인한 경우
+                    currentUser = user;
+                    await saveUserToFirestore(user); // Firestore에 사용자 정보 저장
+                    setupDashboard(user); // 대시보드 설정
+                    showScreen('dashboard-container'); // 대시보드 화면 보여주기
                     const urlParams = new URLSearchParams(window.location.search);
                     isTeacher = urlParams.get('teacher') === 'true';
 
@@ -588,10 +672,13 @@
                     }
                 } else {
                     // 사용자가 로그아웃한 경우
-                    userId = null;
-                    showLoginScreen();
-                    console.log("사용자가 로그아웃했습니다.");
+                    // userId = null;
+                    // showLoginScreen();
+                    // console.log("사용자가 로그아웃했습니다.");
                     // try { await signInAnonymously(auth); } catch (error) { console.error("Anonymous sign-in failed", error); }
+                    // 사용자가 로그아웃한 경우
+                    currentUser = null;
+                    showScreen('login-container'); // 로그인 화면 보여주기
                 }
             });
             // --- ADDED: 구글 로그인 버튼 이벤트 리스너 ---
