@@ -450,49 +450,42 @@
 
         const listenForAiHelper = (classId) => {
             const aiHelperDocRef = doc(db, `classrooms/${classId}/aiHelper/current`);
-            onSnapshot(aiHelperDocRef, (doc) => {
+            const unsubscribe = onSnapshot(aiHelperDocRef, (doc) => {
                 if (doc.exists() && doc.data().content) {
-                    let content = doc.data().content;
+                    const content = doc.data().content;
                     let htmlOutput = '';
-
                     try {
-                        // AI 응답에 포함될 수 있는 마크다운 코드 블록(```json ... ```)을 제거합니다.
-                        if (content.startsWith("```json")) {
-                            content = content.substring(7, content.length - 3).trim();
-                        } else if (content.startsWith("```")) {
-                            content = content.substring(3, content.length - 3).trim();
-                        }
-
                         const aiData = JSON.parse(content);
 
-                        if (aiData.exampleSentence && aiData.theme1 && aiData.theme2) {
+                        // [수정됨] 이제 exampleSentence와 keywords 키만 확인합니다.
+                        if (aiData.exampleSentence && Array.isArray(aiData.keywords)) {
                             htmlOutput += '<h4 class="text-md font-bold text-purple-700 mb-2">🔑 관련 키워드</h4>';
                             htmlOutput += '<div class="flex flex-wrap gap-2">';
 
-                            const allKeywords = [...aiData.theme1, ...aiData.theme2];
-                            allKeywords.forEach(keyword => {
+                            // [수정됨] keywords 배열을 바로 사용합니다.
+                            aiData.keywords.forEach(keyword => {
                                 htmlOutput += `<span class="keyword-tag">${keyword}</span>`;
                             });
+
                             htmlOutput += '</div>';
                             htmlOutput += `
-                    <h4 class="text-md font-bold text-purple-700 mb-2">💡 AI 추천 문장</h4>
-                    <p class="mb-4 p-3 bg-white rounded-md shadow-sm">${aiData.exampleSentence}</p>
-                `;
+                        <h4 class="text-md font-bold text-purple-700 mt-4 mb-2">💡 AI 추천 문장</h4>
+                        <p class="p-3 bg-white rounded-md shadow-sm">${aiData.exampleSentence}</p>
+                    `;
                             aiOutputDiv.innerHTML = htmlOutput;
                         } else {
                             throw new Error("Invalid AI data structure.");
                         }
                     } catch (e) {
                         console.error("Could not parse AI helper content, displaying as raw text:", e);
-                        // 오류 발생 시에도 원본 텍스트를 보여주어 어떤 내용이 왔는지 확인할 수 있도록 합니다.
-                        aiOutputDiv.innerHTML = `<p class="text-gray-700 whitespace-pre-wrap">${doc.data().content}</p>`;
+                        aiOutputDiv.innerHTML = `<p class="text-gray-700 whitespace-pre-wrap">${content}</p>`;
                     }
-
                     aiHelperDiv.classList.remove('hidden');
                 } else {
                     aiHelperDiv.classList.add('hidden');
                 }
             });
+            activeListeners.push(unsubscribe);
         };
 
         const listenForWords = (classId) => {
@@ -617,6 +610,18 @@
                 } finally {
                     startActivityBtn.disabled = false;
                     startActivityBtn.textContent = '1. 활동 시작';
+                }
+            });
+
+            activateWordInputBtn.addEventListener('click', () => {
+                if (currentClassId) {
+                    updatePhase(currentClassId, 'word_input_active');
+                }
+            });
+
+            activateSentenceInputBtn.addEventListener('click', () => {
+                if (currentClassId) {
+                    updatePhase(currentClassId, 'sentence_input_active');
                 }
             });
 
