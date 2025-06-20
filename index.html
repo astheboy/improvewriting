@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>상상하여 글쓰기</title>
+    <title>상상력을 펼치는 글쓰기</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -206,16 +206,23 @@
         class="w-full max-w-5xl bg-white rounded-2xl shadow-xl p-6 md:p-8 space-y-6 relative hidden">
 
         <div class="absolute top-4 left-4 print-hide">
-            <button id="back-to-dashboard-btn"
-                class="bg-gray-500 hover:bg-gray-600 text-white text-sm font-bold py-2 px-3 rounded-lg transition-colors">
+            <!-- 교사용 버튼 -->
+            <button id="teacher-back-btn"
+                class="hidden bg-gray-500 hover:bg-gray-600 text-white text-sm font-bold py-2 px-3 rounded-lg transition-colors">
                 &larr; 대시보드로
             </button>
+            <!-- 학생용 버튼 -->
+            <button id="student-exit-btn"
+                class="hidden bg-gray-500 hover:bg-gray-600 text-white text-sm font-bold py-2 px-3 rounded-lg transition-colors">
+                &larr; 수업 나가기
+            </button>
         </div>
+
         <div class="absolute top-4 right-4 print-hide">
         </div>
 
         <header class="text-center pt-8">
-            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">상상하며 글쓰기</h1>
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">상상력을 펼치는 글쓰기</h1>
             <p class="text-gray-600 mt-2">모두가 같은 사진을 보고 있습니다. 친구들의 글에 공감하며 아이디어를 나눠보세요!</p>
         </header>
 
@@ -604,8 +611,12 @@
             // [수정됨] 교사일 경우에만 제어판을 보여줌
             if (currentUser && !currentUser.isAnonymous) {
                 teacherControls.classList.remove('hidden');
+                teacherBackBtn.classList.remove('hidden');
+                studentExitBtn.classList.add('hidden');
             } else {
                 teacherControls.classList.add('hidden');
+                teacherBackBtn.classList.add('hidden');
+                studentExitBtn.classList.remove('hidden');
             }
 
             // 현재 클래스에 대한 리스너들 활성화
@@ -790,12 +801,25 @@
             });
 
             // 활동 페이지 내 이벤트 리스너
-            backToDashboardBtn.addEventListener('click', () => {
+            teacherBackBtn.addEventListener('click', () => {
                 cleanupListeners();
                 currentClassId = null;
-                setupDashboardUI(currentUser); // 대시보드 리스너 재설정
                 showScreen('dashboard-container');
             });
+
+            studentExitBtn.addEventListener('click', () => {
+                if (confirm("수업에서 나가시겠습니까?")) {
+                    cleanupListeners();
+                    currentClassId = null;
+                    // 익명 사용자는 로그아웃하여 초기 화면으로 돌아가게 함
+                    if (auth.currentUser && auth.currentUser.isAnonymous) {
+                        signOut(auth);
+                    } else {
+                        showScreen('login-container');
+                    }
+                }
+            });
+
             startActivityBtn.addEventListener('click', async () => {
                 if (!currentClassId) return;
                 if (!confirm("새로운 활동을 시작하시겠습니까? 현재 클래스의 모든 단어와 문장 데이터가 초기화됩니다.")) return;
