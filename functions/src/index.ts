@@ -48,11 +48,24 @@ export const startNewActivity = functions.https.onCall(async (data: any, context
     }
 
     const fetchRandomImage = async (query: string) => {
-      const response = await fetch(`https://api.unsplash.com/photos/random?query=${query}&orientation=landscape&client_id=${UNSPLASH_ACCESS_KEY}`);
-      if (!response.ok) {
-        throw new Error(`Unsplash API error: ${response.statusText}`);
+      try {
+        console.log(`Fetching image for query: ${query}`);
+        const response = await fetch(`https://api.unsplash.com/photos/random?query=${query}&orientation=landscape&client_id=${UNSPLASH_ACCESS_KEY}`);
+        
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(`Unsplash API error: ${response.status} ${response.statusText}`, errorText);
+          throw new Error(`Unsplash API error: ${response.status} ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log(`Successfully fetched image for query: ${query}`);
+        return result;
+      } catch (fetchError) {
+        const errorMessage = fetchError instanceof Error ? fetchError.message : String(fetchError);
+        console.error(`Error fetching image for query ${query}:`, errorMessage);
+        throw new Error(`Failed to fetch image: ${errorMessage}`);
       }
-      return await response.json();
     };
 
     const [imageData1, imageData2] = await Promise.all([
@@ -78,8 +91,16 @@ export const startNewActivity = functions.https.onCall(async (data: any, context
     return { success: true, message: '새로운 활동이 성공적으로 시작되었습니다.' };
 
   } catch (error) {
-    console.error('Error in startNewActivity:', error);
-    throw new functions.https.HttpsError('internal', error instanceof Error ? error.message : '서버에서 오류가 발생했습니다.');
+    // 순환 참조 오류를 피하기 위해 오류 메시지만 로그
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Error in startNewActivity:', errorMessage);
+    
+    // 더 상세한 오류 정보 로그
+    if (error instanceof Error) {
+      console.error('Error stack:', error.stack);
+    }
+    
+    throw new functions.https.HttpsError('internal', errorMessage || '서버에서 오류가 발생했습니다.');
   }
 });
 
@@ -123,6 +144,7 @@ export const getAiInspiration = functions.https.onCall(async (data: any, context
       generationConfig: { responseMimeType: "application/json" }
     };
 
+    console.log('Calling Gemini API...');
     const apiResponse = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -130,9 +152,14 @@ export const getAiInspiration = functions.https.onCall(async (data: any, context
     });
 
     if (!apiResponse.ok) {
-      const errorBody = await apiResponse.text();
-      console.error('Gemini API Error:', errorBody);
-      throw new Error(`Gemini API 호출 실패: ${apiResponse.statusText}`);
+      try {
+        const errorBody = await apiResponse.text();
+        console.error(`Gemini API Error: ${apiResponse.status} ${apiResponse.statusText}`, errorBody);
+        throw new Error(`Gemini API 호출 실패: ${apiResponse.status} ${apiResponse.statusText}`);
+      } catch (textError) {
+        console.error(`Gemini API Error: ${apiResponse.status} ${apiResponse.statusText}`);
+        throw new Error(`Gemini API 호출 실패: ${apiResponse.status} ${apiResponse.statusText}`);
+      }
     }
 
     const responseData = await apiResponse.json() as any;
@@ -151,7 +178,15 @@ export const getAiInspiration = functions.https.onCall(async (data: any, context
     return { success: true };
 
   } catch (error) {
-    console.error('Error in getAiInspiration:', error);
-    throw new functions.https.HttpsError('internal', error instanceof Error ? error.message : '서버에서 오류가 발생했습니다.');
+    // 순환 참조 오류를 피하기 위해 오류 메시지만 로그
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error('Error in getAiInspiration:', errorMessage);
+    
+    // 더 상세한 오류 정보 로그
+    if (error instanceof Error) {
+      console.error('Error stack:', error.stack);
+    }
+    
+    throw new functions.https.HttpsError('internal', errorMessage || '서버에서 오류가 발생했습니다.');
   }
 });
