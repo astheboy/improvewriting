@@ -310,6 +310,7 @@
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, deleteDoc, writeBatch, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-functions.js";
 
         // --- Firebase 설정 ---
         const firebaseConfig = {
@@ -323,7 +324,7 @@
         };
 
         // --- 전역 변수 및 HTML 요소 ---
-        let db, auth, currentUser, currentClassId = null;
+        let db, auth, functions, currentUser, currentClassId = null;
         let activeListeners = [];
         const joinForm = document.getElementById('join-form'); // 학생 참여 폼
         const joinCodeInput = document.getElementById('join-code-input'); // 참여 코드 입력창
@@ -752,6 +753,7 @@
                 initializeApp(firebaseConfig);
                 db = getFirestore();
                 auth = getAuth();
+                functions = getFunctions();
             } catch (e) { console.error("Firebase init failed:", e); }
 
             // 1. 전역 이벤트 리스너 설정
@@ -830,23 +832,14 @@
                 showToast("새로운 활동을 준비 중입니다...");
 
                 try {
-                    // Netlify 함수 호출 시 classId를 body에 담아 전송
-                    const response = await fetch('/.netlify/functions/startNewActivity', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ classId: currentClassId }) // 핵심!
-                    });
-
-                    if (!response.ok) {
-                        const errorResult = await response.json();
-                        throw new Error(errorResult.error || '활동 시작에 실패했습니다.');
-                    }
-
-                    const result = await response.json();
-                    if (result.success) {
+                    // Firebase 함수 호출
+                    const startNewActivity = httpsCallable(functions, 'startNewActivity');
+                    const result = await startNewActivity({ classId: currentClassId });
+                    
+                    if (result.data.success) {
                         showToast("새로운 활동이 시작되었습니다!");
                     } else {
-                        throw new Error(result.error || '활동 시작 중 알 수 없는 오류 발생');
+                        throw new Error(result.data.error || '활동 시작 중 알 수 없는 오류 발생');
                     }
 
                 } catch (error) {
@@ -879,16 +872,10 @@
                 aiOutputDiv.innerHTML = '<div class="flex justify-center items-center"><div class="spinner"></div></div>';
 
                 try {
-                    const response = await fetch('/.netlify/functions/getAiInspiration', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ classId: currentClassId }) // classId 전송
-                    });
-
-                    if (!response.ok) {
-                        const errorResult = await response.json();
-                        throw new Error(errorResult.error || 'AI 영감 얻기에 실패했습니다.');
-                    }
+                    // Firebase 함수 호출
+                    const getAiInspiration = httpsCallable(functions, 'getAiInspiration');
+                    const result = await getAiInspiration({ classId: currentClassId });
+                    
                     // 성공 시 별도 처리 없음. listenForAiHelper가 화면을 업데이트합니다.
 
                 } catch (error) {
