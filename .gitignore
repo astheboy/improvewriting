@@ -66,5 +66,8 @@ node_modules/
 .env
 functions/.env
 
+# Firebase configuration files (contain API keys)
+public/js/firebase-config.js
+
 # dataconnect generated files
 .dataconnect

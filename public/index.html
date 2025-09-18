@@ -311,17 +311,7 @@
         import { getAuth, onAuthStateChanged, GoogleAuthProvider, signInWithPopup, signOut, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, query, onSnapshot, serverTimestamp, doc, setDoc, getDoc, updateDoc, arrayUnion, arrayRemove, deleteDoc, writeBatch, where, getDocs } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-functions.js";
-
-        // --- Firebase 설정 ---
-        const firebaseConfig = {
-            apiKey: "AIzaSyB6AzqMt0CByFHu5_YQxltGAK3n8jW_Bmo",
-            authDomain: "imagine-sentences-class.firebaseapp.com",
-            projectId: "imagine-sentences-class",
-            storageBucket: "imagine-sentences-class.firebasestorage.app",
-            messagingSenderId: "863169353628",
-            appId: "1:863169353628:web:b00aa7caedee1090f99a59",
-            measurementId: "G-EQVSNH407N"
-        };
+        import { firebaseConfig } from "./js/firebase-config.js";
 
         // --- 전역 변수 및 HTML 요소 ---
         let db, auth, functions, currentUser, currentClassId = null;
