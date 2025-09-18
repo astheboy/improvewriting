@@ -607,15 +607,29 @@
 
         // --- [수정됨] 클래스 입장 함수 ---
         const enterClassroom = (classId) => {
+            console.log("Entering classroom with classId:", classId);
+            console.log("Current user:", currentUser);
+            
+            if (!classId) {
+                console.error("classId is null or undefined");
+                showToast("클래스 ID가 유효하지 않습니다.", true);
+                return;
+            }
+            
             currentClassId = classId;
+            console.log("currentClassId set to:", currentClassId);
+            
             cleanupListeners(); // 대시보드 리스너 정리
             showScreen('export-content');
+            
             // [수정됨] 교사일 경우에만 제어판을 보여줌
             if (currentUser && !currentUser.isAnonymous) {
+                console.log("Teacher mode - showing controls");
                 teacherControls.classList.remove('hidden');
                 teacherBackBtn.classList.remove('hidden');
                 studentExitBtn.classList.add('hidden');
             } else {
+                console.log("Student mode - hiding controls");
                 teacherControls.classList.add('hidden');
                 teacherBackBtn.classList.add('hidden');
                 studentExitBtn.classList.remove('hidden');
@@ -790,9 +804,12 @@
                 const button = e.target.closest('button');
                 if (!button) return;
                 const classId = button.dataset.id;
+                console.log("Button clicked with classId:", classId);
+                
                 if (button.classList.contains('delete-class-btn')) {
                     if (confirm("정말로 이 클래스를 삭제하시겠습니까?")) deleteDoc(doc(db, "classrooms", classId));
                 } else if (button.classList.contains('enter-class-btn')) {
+                    console.log("Enter class button clicked, calling enterClassroom with:", classId);
                     enterClassroom(classId); // 클래스 입장 함수 호출
                 }
             });
@@ -824,7 +841,15 @@
             });
 
             startActivityBtn.addEventListener('click', async () => {
-                if (!currentClassId) return;
+                // 디버깅을 위한 콘솔 로그 추가
+                console.log("Start Activity clicked, currentClassId:", currentClassId);
+                
+                if (!currentClassId) {
+                    console.error("currentClassId is null or undefined");
+                    showToast("클래스에 입장한 후 활동을 시작해주세요.", true);
+                    return;
+                }
+                
                 if (!confirm("새로운 활동을 시작하시겠습니까? 현재 클래스의 모든 단어와 문장 데이터가 초기화됩니다.")) return;
 
                 startActivityBtn.disabled = true;
@@ -832,9 +857,14 @@
                 showToast("새로운 활동을 준비 중입니다...");
 
                 try {
+                    // 디버깅 로그 추가
+                    console.log("Calling startNewActivity with classId:", currentClassId);
+                    
                     // Firebase 함수 호출
                     const startNewActivity = httpsCallable(functions, 'startNewActivity');
                     const result = await startNewActivity({ classId: currentClassId });
+                    
+                    console.log("Function result:", result);
                     
                     if (result.data.success) {
                         showToast("새로운 활동이 시작되었습니다!");
@@ -844,7 +874,9 @@
 
                 } catch (error) {
                     console.error("Error starting activity:", error);
-                    showToast(error.message, true);
+                    // 더 상세한 오류 정보 표시
+                    const errorMessage = error.message || error.toString();
+                    showToast(`활동 시작 오류: ${errorMessage}`, true);
                 } finally {
                     startActivityBtn.disabled = false;
                     startActivityBtn.textContent = '1. 활동 시작';

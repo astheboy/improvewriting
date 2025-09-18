@@ -6,13 +6,17 @@ const admin = require("firebase-admin");
 const node_fetch_1 = require("node-fetch");
 // Firebase Admin 초기화
 admin.initializeApp();
+// Interface definitions removed - using 'any' type for simplicity
 /**
  * 새로운 활동 시작 - Unsplash 이미지 가져오기 및 데이터 초기화
  */
 exports.startNewActivity = functions.https.onCall(async (data, context) => {
     try {
-        const { classId } = data;
-        if (!classId) {
+        console.log('startNewActivity called with data:', JSON.stringify(data));
+        const classId = data === null || data === void 0 ? void 0 : data.classId;
+        console.log('Extracted classId:', classId);
+        if (!classId || typeof classId !== 'string') {
+            console.error('Invalid or missing classId:', classId);
             throw new functions.https.HttpsError('invalid-argument', '클래스 ID가 필요합니다.');
         }
         const db = admin.firestore();
@@ -69,8 +73,11 @@ exports.startNewActivity = functions.https.onCall(async (data, context) => {
 exports.getAiInspiration = functions.https.onCall(async (data, context) => {
     var _a, _b, _c, _d, _e;
     try {
-        const { classId } = data;
-        if (!classId) {
+        console.log('getAiInspiration called with data:', JSON.stringify(data));
+        const classId = data === null || data === void 0 ? void 0 : data.classId;
+        console.log('Extracted classId:', classId);
+        if (!classId || typeof classId !== 'string') {
+            console.error('Invalid or missing classId:', classId);
             throw new functions.https.HttpsError('invalid-argument', '클래스 ID가 필요합니다.');
         }
         const db = admin.firestore();
